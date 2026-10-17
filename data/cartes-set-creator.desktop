@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Atelier des cartes
+GenericName=Éditeur de jeux de cartes
+Comment=Fabriquer un jeu de cartes pour le rami et la belote
+Exec=cardset-creator
+Icon=applications-graphics
+Terminal=false
+Categories=Graphics;Utility;
+Keywords=cartes;jeu;dos;face;dll;png;svg;
+StartupWMClass=cardset-creator
