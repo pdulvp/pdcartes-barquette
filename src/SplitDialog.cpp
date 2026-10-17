@@ -9,6 +9,7 @@
 #include <QWheelEvent>
 #include <QFormLayout>
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include <QImageReader>
 #include <QLabel>
 #include <QPainter>
@@ -20,12 +21,12 @@
 
 namespace {
 
-// Les lignes du découpage tombent rarement sur des pixels entiers : une
-// planche de 1019 pixels en sept colonnes fait des colonnes de 145,57. Les
-// bornes sont donc calculées en proportion de la planche entière et arrondies
-// une seule fois, pour que les morceaux se suivent sans trou ni recouvrement.
-int boundary(int total, int parts, int index) {
-    return qRound(qreal(total) * index / parts);
+// Combien de morceaux de cette taille-là tiennent dans cette longueur-là, le
+// dernier fût-il entamé. Une planche de 1019 pixels en morceaux de 145 en
+// porte huit : sept entiers et un de 4 pixels.
+int cellCount(int total, int cell) {
+    if (cell <= 0 || total <= 0) return 0;
+    return (total + cell - 1) / cell;
 }
 
 // La planche moins ses marges : la part qui est quadrillée. Les planches ont
@@ -39,14 +40,22 @@ QRect insideRect(const QSize &sheet, const QMargins &margins) {
 }
 
 // La place d'un morceau dans la planche, rognage compris. `inside` est la
-// planche moins ses marges. Nulle si le rognage ne laisse rien.
-QRect pieceRect(const QRect &inside, int columns, int rows, int column, int row, int trim) {
-    const int left = inside.left() + boundary(inside.width(), columns, column) + trim;
-    const int right = inside.left() + boundary(inside.width(), columns, column + 1) - trim;
-    const int top = inside.top() + boundary(inside.height(), rows, row) + trim;
-    const int bottom = inside.top() + boundary(inside.height(), rows, row + 1) - trim;
-    if (right <= left || bottom <= top) return QRect();
-    return QRect(left, top, right - left, bottom - top);
+// planche moins ses marges.
+//
+// Les morceaux font tous la taille demandée, exactement : c'est à cela qu'on
+// gagne à donner une taille plutôt qu'un compte. Le dernier d'une rangée ou
+// d'une colonne ne reçoit que ce qui reste, et n'est pas agrandi pour autant —
+// une planche ne tombe pas toujours juste, et le reste est le plus souvent une
+// marge qu'on n'avait pas vue. Nulle si le rognage ne laisse rien.
+QRect pieceRect(const QRect &inside, int cellWidth, int cellHeight, int column, int row,
+                int trim) {
+    const int left = inside.left() + column * cellWidth;
+    const int top = inside.top() + row * cellHeight;
+    const int right = qMin(left + cellWidth, inside.right() + 1);
+    const int bottom = qMin(top + cellHeight, inside.bottom() + 1);
+    const QRect box(left + trim, top + trim, right - left - 2 * trim, bottom - top - 2 * trim);
+    if (box.width() <= 0 || box.height() <= 0) return QRect();
+    return box;
 }
 
 // L'image telle qu'elle est dans la corbeille, rendue en pixels. Un SVG est
@@ -121,9 +130,9 @@ public:
         setMinimumHeight(240);
     }
 
-    void setCut(int columns, int rows, int trim, const QMargins &margins) {
-        m_columns = columns;
-        m_rows = rows;
+    void setCut(int cellWidth, int cellHeight, int trim, const QMargins &margins) {
+        m_cellWidth = cellWidth;
+        m_cellHeight = cellHeight;
         m_trim = trim;
         m_margins = margins;
         update();
@@ -202,9 +211,12 @@ protected:
         // qui reste d'un seul coup d'œil, et une bordure oubliée en bas se
         // reconnaît à ce qu'elle n'est pas voilée.
         if (!m_margins.isNull()) {
+            // Le voile ne couvre que la planche : une marge négative fait
+            // sortir le quadrillage de l'image, et il n'y a rien à voiler
+            // là-bas — seul ce que les marges mettent dehors est voilé.
             QPainterPath veil;
             veil.addRect(where);
-            if (!inside.isNull()) veil.addRect(onScreen(inside));
+            if (!inside.isNull()) veil.addRect(onScreen(inside).intersected(where));
             painter.setPen(Qt::NoPen);
             QColor wash = scheme.desk;
             wash.setAlphaF(0.66);
@@ -212,12 +224,22 @@ protected:
         }
         if (inside.isNull()) return;
 
+        const int columns = cellCount(inside.width(), m_cellWidth);
+        const int rows = cellCount(inside.height(), m_cellHeight);
         painter.setBrush(Qt::NoBrush);
-        painter.setPen(QPen(scheme.accent, 1.0));
-        for (int row = 0; row < m_rows; ++row) {
-            for (int column = 0; column < m_columns; ++column) {
-                const QRect cut = pieceRect(inside, m_columns, m_rows, column, row, m_trim);
+        for (int row = 0; row < rows; ++row) {
+            for (int column = 0; column < columns; ++column) {
+                const QRect cut = pieceRect(inside, m_cellWidth, m_cellHeight, column, row,
+                                            m_trim);
                 if (cut.isNull()) continue;
+                // Un morceau qui n'a pas la taille demandée — le dernier d'une
+                // rangée, celui du coin — est dessiné d'un trait à part : c'est
+                // ce qu'on veut voir tout de suite, pour savoir si c'est une
+                // carte coupée ou une marge qui traîne.
+                const bool whole = cut.width() == m_cellWidth - 2 * m_trim
+                                   && cut.height() == m_cellHeight - 2 * m_trim;
+                painter.setPen(QPen(whole ? scheme.accent : scheme.hint, 1.0,
+                                    whole ? Qt::SolidLine : Qt::DashLine));
                 painter.drawRect(onScreen(cut));
             }
         }
@@ -296,8 +318,8 @@ private:
     }
 
     QImage m_sheet;
-    int m_columns = 1;
-    int m_rows = 1;
+    int m_cellWidth = 1;
+    int m_cellHeight = 1;
     int m_trim = 0;
     QMargins m_margins;
 
@@ -338,21 +360,37 @@ SplitDialog::SplitDialog(const DllImage &sheet, QWidget *parent) : QDialog(paren
     // raison d'être. Une bordure laissée dans le quadrillage ne se rogne pas
     // après coup — elle est répartie entre tous les morceaux d'une rangée, et
     // chacun en reçoit sa tranche.
-    m_left = countBox(this, 0, m_sheet.width() - 1, 0);
-    m_right = countBox(this, 0, m_sheet.width() - 1, 0);
-    m_top = countBox(this, 0, m_sheet.height() - 1, 0);
-    m_bottom = countBox(this, 0, m_sheet.height() - 1, 0);
+    // Les marges vont dans les deux sens. Une planche n'est pas toujours
+    // d'aplomb : il lui manque trois pixels à gauche, ou sa première carte
+    // commence avant son bord. Une marge négative pousse le quadrillage
+    // dehors, et ce qui dépasse sort transparent — c'est ce qu'il faut pour
+    // qu'une carte amputée garde sa taille et sa place dans le morceau.
+    m_left = countBox(this, -m_sheet.width(), m_sheet.width() - 1, 0);
+    m_right = countBox(this, -m_sheet.width(), m_sheet.width() - 1, 0);
+    m_top = countBox(this, -m_sheet.height(), m_sheet.height() - 1, 0);
+    m_bottom = countBox(this, -m_sheet.height(), m_sheet.height() - 1, 0);
     for (QSpinBox *box : {m_left, m_right, m_top, m_bottom}) {
         box->setSuffix(tr(" px"));
         box->setToolTip(tr("Met ce bord de la planche dehors avant le quadrillage : le cadre "
                            "d'une planche n'est pas une carte, et certaines n'en ont que "
-                           "d'un côté."));
+                           "d'un côté. Un nombre négatif fait l'inverse : le quadrillage "
+                           "déborde la planche de ce côté-là, et le morceau du bord se "
+                           "complète de transparent."));
     }
 
-    // Treize colonnes et quatre rangées : la planche d'un jeu complet, et le
-    // découpage qu'on demande neuf fois sur dix.
-    m_columns = countBox(this, 1, 64, 13);
-    m_rows = countBox(this, 1, 64, 4);
+    // Une taille de morceau plutôt qu'un compte : les morceaux font alors tous
+    // la même taille, au pixel près, et c'est la taille des cartes qu'on a
+    // sous les yeux. Treize colonnes et quatre rangées pour commencer — la
+    // planche d'un jeu complet, et ce qu'on découpe neuf fois sur dix — mais
+    // c'est un point de départ, pas un partage : on corrige les deux nombres
+    // en regardant le quadrillage tomber entre les cartes.
+    m_cellWidth = countBox(this, 1, m_sheet.width(), qMax(1, qRound(m_sheet.width() / 13.0)));
+    m_cellHeight = countBox(this, 1, m_sheet.height(), qMax(1, qRound(m_sheet.height() / 4.0)));
+    for (QSpinBox *box : {m_cellWidth, m_cellHeight}) {
+        box->setSuffix(tr(" px"));
+        box->setToolTip(tr("La taille d'un morceau, en pixels. Tous l'ont, sauf les derniers "
+                           "d'une rangée ou d'une colonne, qui n'ont que ce qui reste."));
+    }
     m_trim = countBox(this, 0, 64, 0);
     m_trim->setSuffix(tr(" px"));
     m_trim->setToolTip(tr("Retire autant de pixels sur chaque bord de chaque morceau : "
@@ -374,9 +412,17 @@ SplitDialog::SplitDialog(const DllImage &sheet, QWidget *parent) : QDialog(paren
     edges->addWidget(m_bottom, 1, 3);
     edges->setColumnStretch(4, 1);
 
+    // La largeur et la hauteur côte à côte : c'est une taille, pas deux
+    // réglages, et on la lit comme on lit « 71 × 96 ».
+    auto *cell = new QHBoxLayout;
+    cell->setSpacing(8);
+    cell->addWidget(m_cellWidth);
+    cell->addWidget(fieldLabel(this, tr("×")), 0, Qt::AlignCenter);
+    cell->addWidget(m_cellHeight);
+    cell->addStretch();
+
     form->addRow(fieldLabel(this, tr("Marges")), edges);
-    form->addRow(fieldLabel(this, tr("Colonnes")), m_columns);
-    form->addRow(fieldLabel(this, tr("Rangées")), m_rows);
+    form->addRow(fieldLabel(this, tr("Taille d'un morceau")), cell);
     form->addRow(fieldLabel(this, tr("Rogner les bords")), m_trim);
     chrome.fields->addLayout(form);
 
@@ -398,7 +444,7 @@ SplitDialog::SplitDialog(const DllImage &sheet, QWidget *parent) : QDialog(paren
         cut();
         accept();
     });
-    for (QSpinBox *box : {m_left, m_top, m_right, m_bottom, m_columns, m_rows, m_trim}) {
+    for (QSpinBox *box : {m_left, m_top, m_right, m_bottom, m_cellWidth, m_cellHeight, m_trim}) {
         connect(box, &QSpinBox::valueChanged, this, &SplitDialog::retell);
     }
 
@@ -410,26 +456,29 @@ QMargins SplitDialog::margins() const {
     return QMargins(m_left->value(), m_top->value(), m_right->value(), m_bottom->value());
 }
 
-// Ce que le découpage courant donnera : le compte des morceaux et leur taille.
+// Ce que le découpage courant donnera : le compte des morceaux, leur taille,
+// et ce qui reste au bord quand la taille demandée ne tombe pas juste.
 void SplitDialog::retell() {
-    const int columns = m_columns->value();
-    const int rows = m_rows->value();
+    const int cellWidth = m_cellWidth->value();
+    const int cellHeight = m_cellHeight->value();
     const int trim = m_trim->value();
     const QMargins edges = margins();
-    m_preview->setCut(columns, rows, trim, edges);
+    m_preview->setCut(cellWidth, cellHeight, trim, edges);
 
     const QRect inside = insideRect(m_sheet.size(), edges);
     if (inside.isNull()) {
         m_tally->setText(tr("Les marges ne laissent rien de la planche."));
         return;
     }
-    const QRect first = pieceRect(inside, columns, rows, 0, 0, trim);
+    const QRect first = pieceRect(inside, cellWidth, cellHeight, 0, 0, trim);
     if (first.isNull()) {
         m_tally->setText(tr("Le rognage ne laisse rien des morceaux."));
         return;
     }
 
-    QString told = tr("%1 × %2 : %3 morceaux d'environ %4 × %5 pixels, pris sur une planche de "
+    const int columns = cellCount(inside.width(), cellWidth);
+    const int rows = cellCount(inside.height(), cellHeight);
+    QString told = tr("%1 × %2 : %3 morceaux de %4 × %5 pixels, pris sur une planche de "
                       "%6 × %7.")
                        .arg(columns)
                        .arg(rows)
@@ -439,11 +488,37 @@ void SplitDialog::retell() {
                        .arg(m_sheet.width())
                        .arg(m_sheet.height());
     if (!edges.isNull()) {
-        told += tr(" Les marges en gardent %1 × %2, à partir de %3, %4.")
-                    .arg(inside.width())
-                    .arg(inside.height())
-                    .arg(inside.left())
-                    .arg(inside.top());
+        const bool beyond = !QRect(QPoint(0, 0), m_sheet.size()).contains(inside);
+        told += beyond ? tr(" Le quadrillage couvre %1 × %2, à partir de %3, %4 : ce qui "
+                            "déborde la planche sort transparent.")
+                             .arg(inside.width())
+                             .arg(inside.height())
+                             .arg(inside.left())
+                             .arg(inside.top())
+                       : tr(" Les marges en gardent %1 × %2, à partir de %3, %4.")
+                             .arg(inside.width())
+                             .arg(inside.height())
+                             .arg(inside.left())
+                             .arg(inside.top());
+    }
+
+    // Le reste : ce que la dernière colonne et la dernière rangée n'ont pas.
+    // C'est le seul endroit où la taille demandée ne se retrouve pas telle
+    // quelle, et c'est donc ce qu'il faut dire.
+    const int lastWidth = inside.width() - (columns - 1) * cellWidth;
+    const int lastHeight = inside.height() - (rows - 1) * cellHeight;
+    QStringList rests;
+    if (lastWidth != cellWidth) {
+        rests << tr("la dernière colonne n'a que %1 px de large").arg(lastWidth);
+    }
+    if (lastHeight != cellHeight) {
+        rests << tr("la dernière rangée n'a que %1 px de haut").arg(lastHeight);
+    }
+    if (!rests.isEmpty()) {
+        told += QLatin1Char(' ')
+                + tr("La planche ne tombe pas juste : %1 — à mettre en marge si ce n'est pas "
+                     "une carte.")
+                      .arg(rests.join(tr(" et ")));
     }
     m_tally->setText(told);
 }
@@ -451,18 +526,31 @@ void SplitDialog::retell() {
 // Les morceaux, en PNG : une planche est un JPEG le plus souvent, et un
 // morceau de carte a des coins à rendre transparents plus tard.
 void SplitDialog::cut() {
-    const int columns = m_columns->value();
-    const int rows = m_rows->value();
+    const int cellWidth = m_cellWidth->value();
+    const int cellHeight = m_cellHeight->value();
     const int trim = m_trim->value();
     const QRect inside = insideRect(m_sheet.size(), margins());
     if (inside.isNull()) return;
 
+    const int columns = cellCount(inside.width(), cellWidth);
+    const int rows = cellCount(inside.height(), cellHeight);
+
+    // Une marge négative fait sortir le quadrillage de la planche : ce qui
+    // dépasse n'existe pas, et QImage le remplit de zéros. Sur une image sans
+    // couche alpha, des zéros sont du noir — un bord noir autour d'une carte,
+    // qu'il faudrait ensuite retirer à la main. Avec la couche alpha, ce même
+    // rien sort transparent.
+    QImage source = m_sheet;
+    if (!source.rect().contains(inside) && !source.hasAlphaChannel()) {
+        source = source.convertToFormat(QImage::Format_ARGB32);
+    }
+
     m_pieces.clear();
     for (int row = 0; row < rows; ++row) {
         for (int column = 0; column < columns; ++column) {
-            const QRect cut = pieceRect(inside, columns, rows, column, row, trim);
+            const QRect cut = pieceRect(inside, cellWidth, cellHeight, column, row, trim);
             if (cut.isNull()) continue;
-            const QImage piece = m_sheet.copy(cut);
+            const QImage piece = source.copy(cut);
             if (piece.isNull()) continue;
 
             QByteArray bytes;

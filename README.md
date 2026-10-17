@@ -83,7 +83,7 @@ Les places du jeu à gauche, les images qu'on a sous la main à droite.
 | clic sur une image | la désigne |
 | clic droit sur une image | la colle à celle qui est désignée, d'un côté ou de l'autre |
 | **Ranger ici**, ou double-clic | met l'image désignée dans la place désignée |
-| **Découper…** | débite une planche de plusieurs cartes en autant de morceaux |
+| **Découper…** | débite une planche de plusieurs cartes en morceaux d'une taille donnée |
 | **Marges** | met le cadre d'une planche dehors avant de la quadriller |
 | clic droit sur une place | la vide |
 | `←` `→` | passer d'une place à la suivante |
@@ -137,12 +137,21 @@ Les jeux de cartes récents ne rangent plus une image par carte : ils en mettent
 cinquante-deux, ou cent quarante, sur **une seule image** en rangées et en
 colonnes — le `CardGames.dll` de Windows 7 n'a que des planches.
 
-**Découper…** débite l'image désignée. On lui donne un nombre de colonnes et un
-nombre de rangées, et le découpage se dessine sur l'image pendant qu'on compte :
-des traits qui ne tombent pas entre les cartes disent que le compte n'est pas le
-bon avant qu'on ait découpé. **Rogner les bords** retire quelques pixels tout
-autour de chaque morceau, de quoi laisser derrière soi le trait qui sépare les
-cartes.
+**Découper…** débite l'image désignée. On lui donne la **taille d'un morceau**
+— largeur et hauteur en pixels — et le découpage se dessine sur l'image pendant
+qu'on écrit : des traits qui ne tombent pas entre les cartes disent que la
+taille n'est pas la bonne avant qu'on ait découpé. **Rogner les bords** retire
+quelques pixels tout autour de chaque morceau, de quoi laisser derrière soi le
+trait qui sépare les cartes.
+
+Une taille plutôt qu'un nombre de colonnes : les morceaux font alors **tous
+exactement cette taille-là**. Un nombre de colonnes partage la planche en parts
+égales, et des parts égales tombent entre deux pixels dès que la planche ne se
+divise pas juste — les cartes sortent décalées d'un pixel les unes des autres,
+et le décalage ne se rattrape plus. Ce qui reste au bord fait un dernier
+morceau plus petit, dessiné en pointillé, jamais agrandi, et annoncé en toutes
+lettres sous les champs : c'est presque toujours une marge qu'on n'avait pas
+vue.
 
 L'aperçu se regarde de près : la **molette** grossit sous le curseur, on
 **tire** la planche pour aller voir ailleurs, le **double-clic** la rend
@@ -151,17 +160,24 @@ de découpe qui passe à deux pixels d'une carte ne se voit pas autrement.
 
 Les quatre **marges** se prennent sur la planche *avant* le quadrillage, et
 c'est tout l'intérêt : ce qui n'est pas une carte — un cadre, un filet, la
-rangée coupée en deux au bas d'un quart de planche — sort du compte au lieu
-d'être réparti en tranches entre tous les morceaux d'une rangée. Une bordure
-laissée dans le quadrillage ne se rattrape pas après coup ; le rognage, lui,
-travaille sur chaque morceau et n'y peut rien. Ce que les marges mettent dehors
+rangée coupée en deux au bas d'un quart de planche — sort du compte au lieu de
+décaler toutes les cartes de sa largeur. Une bordure laissée dans le
+quadrillage ne se rattrape pas après coup ; le rognage, lui, travaille sur
+chaque morceau et n'y peut rien.
+
+Une marge peut être **négative** : le quadrillage déborde alors la planche de
+ce côté-là. Les planches ne sont pas toutes d'aplomb — il manque trois pixels à
+gauche, la première rangée commence avant le bord — et une marge négative remet
+le quadrillage en place au lieu de décaler toutes les cartes. Ce qui dépasse la
+planche sort **transparent** : le morceau du bord garde sa taille, et seules la
+première rangée ou la dernière en pâtissent. Ce que les marges mettent dehors
 est voilé sur l'image, de sorte qu'on voit ce qui part.
 
 Ainsi la planche à double résolution que les bibliothèques coupent en quatre :
 le quart de 1019 × 1024 porte six colonnes et cinq rangées entières de cartes
 de 146 × 196, et le reste — 143 pixels à droite, 44 en bas — est la moitié des
-cartes voisines. Mis en marge, il s'en va, et les trente morceaux sortent
-d'aplomb.
+cartes voisines. En marge, ou laissé à ses morceaux en pointillé qu'on ne
+rangera pas : les trente cartes entières sortent d'aplomb.
 
 La planche s'en va, ses morceaux prennent sa place sous la main dans l'ordre de
 lecture, et il n'y a plus qu'à les ranger.

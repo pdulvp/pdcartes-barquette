@@ -13,9 +13,14 @@ class SheetPreview;
 
 // Découper une planche en morceaux. Les jeux de cartes récents de Windows ne
 // rangent plus une image par carte : ils en mettent cinquante-deux sur une
-// seule planche, en rangées et en colonnes. La boîte demande combien de
-// colonnes et combien de rangées, montre le découpage sur l'image, et rend les
-// morceaux.
+// seule planche, en rangées et en colonnes. La boîte demande la taille d'un
+// morceau, montre le découpage sur l'image, et rend les morceaux.
+//
+// Une taille plutôt qu'un compte de colonnes : un compte partage la planche en
+// parts égales, et des parts égales tombent entre deux pixels dès que la
+// planche ne se divise pas juste — les morceaux sortent alors à un pixel près
+// les uns des autres, décalés d'autant. Une taille donne des morceaux qui font
+// tous exactement cela, et le reste du bord se voit au lieu d'être réparti.
 class SplitDialog : public QDialog {
     Q_OBJECT
 
@@ -47,8 +52,8 @@ private:
     QSpinBox *m_top = nullptr;
     QSpinBox *m_right = nullptr;
     QSpinBox *m_bottom = nullptr;
-    QSpinBox *m_columns = nullptr;
-    QSpinBox *m_rows = nullptr;
+    QSpinBox *m_cellWidth = nullptr;
+    QSpinBox *m_cellHeight = nullptr;
     QSpinBox *m_trim = nullptr;
     QLabel *m_tally = nullptr;
 };

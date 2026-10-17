@@ -156,10 +156,24 @@ mettent cinquante-deux, ou cent quarante, sur <b>une seule image</b> en
 rangées et en colonnes. Une planche pareille arrive sous la main en un seul
 morceau, et il n'y a rien à en faire telle quelle.</p>
 
-<p>Le bouton <b>Découper…</b> la débite. On lui dit combien de
-<b>colonnes</b> et combien de <b>rangées</b>, et le découpage se dessine sur
-l'image pendant qu'on compte : si les traits ne tombent pas entre les cartes,
-c'est que le compte n'est pas le bon, et on le voit avant d'avoir découpé.</p>
+<p>Le bouton <b>Découper…</b> la débite. On lui dit la <b>taille d'un
+morceau</b> — sa largeur et sa hauteur en pixels — et le découpage se dessine
+sur l'image pendant qu'on écrit : si les traits ne tombent pas entre les
+cartes, c'est que la taille n'est pas la bonne, et on le voit avant d'avoir
+découpé.</p>
+
+<p>Une taille plutôt qu'un nombre de colonnes : les morceaux font alors
+<b>tous exactement cette taille-là</b>. Un nombre de colonnes partage la
+planche en parts égales, et des parts égales tombent entre deux pixels dès que
+la planche ne se divise pas juste — les cartes sortent décalées d'un pixel les
+unes des autres, et ce décalage ne se rattrape plus. La taille d'une carte,
+elle, se lit sur la planche : la molette, ci-dessous, est là pour cela.</p>
+
+<p>Ce qui reste au bord quand la taille ne tombe pas juste fait un dernier
+morceau <b>plus petit</b>, dessiné en pointillé et jamais agrandi. Le compte
+des morceaux le dit aussi, en toutes lettres. Neuf fois sur dix c'est une
+marge qu'on n'avait pas vue : on la met en marge, justement, et elle s'en
+va.</p>
 
 <p>Une planche entière tient dans la boîte, et une carte y est donc minuscule.
 La <b>molette</b> grossit l'aperçu sous le curseur, on <b>tire</b> la planche
@@ -176,21 +190,31 @@ deux pixels suffisent d'ordinaire.</p>
 <p>Les quatre <b>marges</b> — gauche, droite, haut, bas — se prennent sur la
 planche <b>avant</b> qu'elle soit quadrillée, et c'est là tout leur intérêt.
 Une planche porte souvent ce qui n'est pas une carte : un cadre, un filet, une
-bordure en bas. Laissé dans le quadrillage, ce bord-là ne reste pas dans un
-coin — il est <b>réparti entre tous les morceaux</b> de sa rangée, et chacun en
-reçoit sa tranche. Mis en marge, il s'en va une fois pour toutes.</p>
+bordure en bas. Laissé dans le quadrillage, ce bord-là décale toutes les
+cartes de sa largeur, et le découpage ne tombe plus nulle part. Mis en marge,
+il s'en va une fois pour toutes et le reste tombe d'aplomb.</p>
 
 <p>C'est pourquoi le rognage n'y suffit pas : il travaille sur chaque morceau
 déjà découpé, quand la bordure, elle, a faussé le découpage lui-même. Ce que
 les marges mettent dehors est <b>voilé</b> sur l'image : on voit d'un coup
 d'œil ce qui part et ce qui reste.</p>
 
+<p>Une marge peut être <b>négative</b>, et c'est alors l'inverse : le
+quadrillage déborde la planche de ce côté-là. Les planches ne sont pas toutes
+d'aplomb — il manque trois pixels à gauche, la première rangée commence avant
+le bord — et une marge négative remet le quadrillage où il doit être au lieu
+de décaler toutes les cartes. Ce qui dépasse la planche n'existe pas : le
+morceau du bord garde sa taille et se complète de <b>transparent</b>. La
+première rangée ou la dernière y perd quelque chose, mais les cartes du milieu
+sortent d'aplomb.</p>
+
 <p>Une planche qui n'est qu'un <b>bout</b> d'une plus grande — les
 bibliothèques coupent parfois en quatre celle qu'elles tiennent à double
 résolution — se découpe ainsi très bien. Le quart de 1019 × 1024 porte six
 colonnes et cinq rangées entières de cartes de 146 × 196 ; le reste, 143
-pixels à droite et 44 en bas, est la moitié des cartes voisines. En marge, et
-les trente morceaux sortent d'aplomb.</p>
+pixels à droite et 44 en bas, est la moitié des cartes voisines. On peut le
+mettre en marge, ou le laisser faire ses morceaux en pointillé et ne pas les
+ranger : dans les deux cas les trente cartes entières sortent d'aplomb.</p>
 
 <p>La planche s'en va et ses morceaux prennent sa place sous la main, dans
 l'ordre de lecture : il n'y a plus qu'à les ranger.</p>
