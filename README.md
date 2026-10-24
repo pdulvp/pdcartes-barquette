@@ -16,13 +16,13 @@ jeux le proposent dans leurs réglages au lancement suivant.
 | `src/` | **l'atelier** : le programme qui écrit les fichiers que la cartothèque lit |
 
 La cartothèque est une **bibliothèque statique**. Elle entre dans le binaire de
-qui l'emploie : `ramisol`, `belotesol` et `cardset-creator` restent chacun un
+qui l'emploie : `ramisol`, `belotesol` et `pdcartes-barquette` restent chacun un
 exécutable et rien d'autre, et rien n'est installé à côté d'eux.
 
 Un programme s'en sert depuis un dossier voisin :
 
 ```cmake
-add_subdirectory(../cardset-creator/lib cartotheque)
+add_subdirectory(../pdcartes-barquette/lib cartotheque)
 target_link_libraries(monjeu PRIVATE cartotheque)
 ```
 
@@ -218,7 +218,7 @@ Le plus commode pour commencer est de partir de celui du rami :
 
 ```sh
 ramisol --exporter-cartes mon-jeu.cartes
-cardset-creator mon-jeu.cartes
+pdcartes-barquette mon-jeu.cartes
 ```
 
 On remplace les quatre as, on enregistre, on installe.
@@ -228,11 +228,11 @@ On remplace les quatre as, on enregistre, on installe.
 ```sh
 cmake -S . -B build
 cmake --build build
-./build/cardset-creator
+./build/pdcartes-barquette
 ```
 
 Un paquet Debian : `cmake --build build --target deb`. Il porte l'heure du
-build derrière un `~` — `cardset-creator_1.0.0~261024225112_amd64.deb` — ce qui
+build derrière un `~` — `pdcartes-barquette_1.0.0~261024225112_amd64.deb` — ce qui
 le classe *avant* la version vers laquelle il va, et le laisse donc remplacer
 par elle.
 

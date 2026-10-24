@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.16)
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" ATELIER_VERSION)
 string(STRIP "${ATELIER_VERSION}" ATELIER_VERSION)
 
-project(cardset-creator VERSION ${ATELIER_VERSION} LANGUAGES CXX)
+project(pdcartes-barquette VERSION ${ATELIER_VERSION} LANGUAGES CXX)
 
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
@@ -37,7 +37,7 @@ add_custom_target(build-version ALL
     COMMENT "Stamping the build with the time it was made")
 set_source_files_properties(${BUILD_VERSION_CPP} PROPERTIES GENERATED TRUE)
 
-add_executable(cardset-creator
+add_executable(pdcartes-barquette
     ${BUILD_VERSION_CPP}
     src/Version.h
     src/main.cpp
@@ -55,16 +55,16 @@ add_executable(cardset-creator
     src/HelpDialog.h
 )
 
-add_dependencies(cardset-creator build-version)
-target_link_libraries(cardset-creator PRIVATE cartotheque Qt6::Widgets)
+add_dependencies(pdcartes-barquette build-version)
+target_link_libraries(pdcartes-barquette PRIVATE cartotheque Qt6::Widgets)
 
-install(TARGETS cardset-creator RUNTIME DESTINATION bin)
-install(FILES data/cardset-creator.desktop
+install(TARGETS pdcartes-barquette RUNTIME DESTINATION bin)
+install(FILES data/pdcartes-barquette.desktop
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
 
 set(CPACK_GENERATOR "DEB")
-set(CPACK_PACKAGE_NAME "cardset-creator")
-set(CPACK_PACKAGE_VENDOR "cardset-creator")
+set(CPACK_PACKAGE_NAME "pdcartes-barquette")
+set(CPACK_PACKAGE_VENDOR "pdcartes-barquette")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "L'atelier des jeux de cartes")
 set(CPACK_PACKAGE_DESCRIPTION
     "De quoi fabriquer un jeu de cartes pour le rami et la belote de la maison :
@@ -90,7 +90,7 @@ include(CPack)
 add_custom_target(deb
     COMMAND ${CMAKE_COMMAND} -E env CARTOTHEQUE_KEEP_VERSION=1
         ${CMAKE_CPACK_COMMAND} -G DEB --config ${CMAKE_CURRENT_BINARY_DIR}/CPackConfig.cmake
-    DEPENDS cardset-creator
+    DEPENDS pdcartes-barquette
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     COMMENT "Building the Debian package")
 
@@ -99,7 +99,7 @@ add_custom_target(deb
 #
 #     cmake --build build --target release
 #
-# Le deb nommé par la version seule -- cardset-creator_1.0.0_amd64.deb -- et
+# Le deb nommé par la version seule -- pdcartes-barquette_1.0.0_amd64.deb -- et
 # le binaire dedans qui ne dit qu'elle. Un build ordinaire garde son
 # empreinte, lui, derrière un `~` qui le classe avant la version vers
 # laquelle il va ; voir cmake/CPackOptions.cmake.
@@ -118,7 +118,7 @@ add_custom_target(release
     # 2. Le binaire avant le paquet : ce qui casse s'arrête ici, et il ne
     #    reste pas la moitié d'une version sur le disque.
     COMMAND ${CMAKE_COMMAND} -E env CARTOTHEQUE_KEEP_VERSION=1
-        ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR} --target cardset-creator
+        ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR} --target pdcartes-barquette
 
     # 3. Le paquet, par la cible qui le fait déjà.
     COMMAND ${CMAKE_COMMAND} -E env CARTOTHEQUE_KEEP_VERSION=1

@@ -11,7 +11,7 @@
             "name": "Atelier",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/cardset-creator",
+            "program": "${workspaceFolder}/build/pdcartes-barquette",
             "args": [],
             "cwd": "${workspaceFolder}",
             "environment": [],

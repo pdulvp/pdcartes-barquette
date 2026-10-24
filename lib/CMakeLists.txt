@@ -3,7 +3,7 @@
 #
 # Bibliothèque statique : elle est liée dans le binaire de qui l'emploie.
 #
-#   add_subdirectory(../cardset-creator/lib cartotheque)
+#   add_subdirectory(../pdcartes-barquette/lib cartotheque)
 #   target_link_libraries(monjeu PRIVATE cartotheque)
 
 add_library(cartotheque STATIC

@@ -34,10 +34,10 @@ void ensureIconTheme() {
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
-    QApplication::setOrganizationName("cardset-creator");
-    QApplication::setApplicationName("cardset-creator");
+    QApplication::setOrganizationName("pdcartes-barquette");
+    QApplication::setApplicationName("pdcartes-barquette");
     QApplication::setApplicationVersion(fullVersion());
-    QApplication::setDesktopFileName(QStringLiteral("cardset-creator"));
+    QApplication::setDesktopFileName(QStringLiteral("pdcartes-barquette"));
 
     QLocale::setDefault(QLocale(QLocale::French, QLocale::France));
     ensureIconTheme();

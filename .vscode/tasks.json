@@ -32,7 +32,7 @@
             "dependsOn": ["Configure"],
             "group": "build",
             "problemMatcher": ["$gcc"],
-            "detail": "Builds, then packs build/cardset-creator_<version>-<build>_<arch>.deb"
+            "detail": "Builds, then packs build/pdcartes-barquette_<version>-<build>_<arch>.deb"
         },
         {
             // The three parts of the version, each on its own task. Raising
