@@ -85,9 +85,43 @@ set(CPACK_PROJECT_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPackOptions.cm
 set(CPACK_PACKAGE_VERSION "${ATELIER_VERSION}")
 include(CPack)
 
+# Le paquet d'un build de travail : `cmake --build build --target deb`. Il
+# porte l'empreinte de l'heure derrière un `~` ; voir cmake/CPackOptions.cmake.
 add_custom_target(deb
     COMMAND ${CMAKE_COMMAND} -E env CARTOTHEQUE_KEEP_VERSION=1
         ${CMAKE_CPACK_COMMAND} -G DEB --config ${CMAKE_CURRENT_BINARY_DIR}/CPackConfig.cmake
     DEPENDS cardset-creator
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     COMMENT "Building the Debian package")
+
+# ---------------------------------------------------------------------------
+# Le paquet d'une version :
+#
+#     cmake --build build --target release
+#
+# Le deb nommé par la version seule -- cardset-creator_1.0.0_amd64.deb -- et
+# le binaire dedans qui ne dit qu'elle. Un build ordinaire garde son
+# empreinte, lui, derrière un `~` qui le classe avant la version vers
+# laquelle il va ; voir cmake/CPackOptions.cmake.
+#
+# L'absence d'empreinte est à la cible et non à l'arbre : pas d'option de
+# configuration qu'on laisse allumée sans le voir et qui donnerait un jour
+# deux 1.0.0 que dpkg ne sait pas départager.
+add_custom_target(release
+    # 1. La version, sans empreinte. CARTOTHEQUE_KEEP_VERSION tient ensuite
+    #    la cible build-version tranquille : sans quoi le build qui suit la
+    #    réécrirait, horodatée.
+    COMMAND ${CMAKE_COMMAND} -DVERSION=${ATELIER_VERSION} -DRELEASE=ON
+        -DOUT_CPP=${BUILD_VERSION_CPP} -DOUT_TXT=${BUILD_VERSION_TXT}
+        -P ${GENERATE_VERSION}
+
+    # 2. Le binaire avant le paquet : ce qui casse s'arrête ici, et il ne
+    #    reste pas la moitié d'une version sur le disque.
+    COMMAND ${CMAKE_COMMAND} -E env CARTOTHEQUE_KEEP_VERSION=1
+        ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR} --target cardset-creator
+
+    # 3. Le paquet, par la cible qui le fait déjà.
+    COMMAND ${CMAKE_COMMAND} -E env CARTOTHEQUE_KEEP_VERSION=1
+        ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR} --target deb
+
+    COMMENT "Le paquet de la version ${ATELIER_VERSION}")

@@ -231,7 +231,13 @@ cmake --build build
 ./build/cardset-creator
 ```
 
-Un paquet Debian : `cmake --build build --target deb`.
+Un paquet Debian : `cmake --build build --target deb`. Il porte l'heure du
+build derrière un `~` — `cardset-creator_1.0.0~261024225112_amd64.deb` — ce qui
+le classe *avant* la version vers laquelle il va, et le laisse donc remplacer
+par elle.
+
+Le paquet d'une version, nommé par son numéro seul et sans empreinte dedans :
+`cmake --build build --target release`.
 
 Le greffon Qt qui lit les SVG (`qt6-svg-plugins`) n'est pas une dépendance
 dure — un jeu en PNG marche sans — mais sans lui un jeu vectoriel est une table

@@ -3,11 +3,26 @@
 # one package of a version from the next. Setting it in CMakeLists would
 # freeze it at the moment the project was configured, which may be weeks of
 # builds ago.
+#
+# L'empreinte va dans la version, derrière un `~`, et non dans le champ de
+# release de Debian. Deux raisons :
+#
+#  - `~` se classe avant tout, le vide compris : `1.0.0~261024225112` est
+#    *antérieur* à `1.0.0`, ce qu'un build de travail est. Dans le champ de
+#    release il serait postérieur, et un build de travail installé empêcherait
+#    la version de s'installer par-dessus ;
+#  - le champ de release, c'est la énième mise en paquet d'une même version --
+#    une dépendance corrigée, un résumé réécrit. L'y mettre, c'est occuper
+#    une case qui sert à autre chose.
+#
+# La cible release, elle, ne laisse pas d'empreinte du tout : le paquet
+# s'appelle `1.0.0` et c'est la version. Rien à faire ici pour cela, le test
+# ci-dessous ne trouve qu'une empreinte vide.
 
 if(EXISTS "${CPACK_BUILD_VERSION_FILE}")
-    file(READ "${CPACK_BUILD_VERSION_FILE}" _cardset-creator_build)
-    string(STRIP "${_cardset-creator_build}" _cardset-creator_build)
-    if(_cardset-creator_build)
-        set(CPACK_DEBIAN_PACKAGE_RELEASE "${_cardset-creator_build}")
+    file(READ "${CPACK_BUILD_VERSION_FILE}" _cartotheque_build)
+    string(STRIP "${_cartotheque_build}" _cartotheque_build)
+    if(_cartotheque_build)
+        set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION}~${_cartotheque_build}")
     endif()
 endif()
