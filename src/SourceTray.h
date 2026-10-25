@@ -8,7 +8,7 @@
 #include <QVector>
 #include <QWidget>
 
-// Les images ouvertes, en attente d'être rangées dans une place du jeu.
+// Les images ouvertes, en attente d'être placées dans une case du jeu.
 class SourceTray : public QWidget {
     Q_OBJECT
 
@@ -18,17 +18,17 @@ public:
     struct Item {
         DllImage image;
         QPixmap thumb;
-        bool used = false;     // déjà rangée dans une place
+        bool used = false;     // déjà placée dans une case
     };
 
     void setItems(const QVector<DllImage> &images);
     void addItems(const QVector<DllImage> &images);
-    // Une planche s'en va, ses morceaux prennent sa place : l'image découpée
-    // n'est pas une carte et n'a plus rien à faire sous la main. Faux si
-    // aucune des images données ne se lit, l'ancienne restant alors en place.
+    // Remplace une planche par ses morceaux : la planche découpée n'est pas
+    // une carte et n'a plus à figurer dans la liste. Renvoie faux si aucune
+    // des images fournies n'est lisible, l'ancienne restant alors en place.
     bool replaceItem(int index, const QVector<DllImage> &images);
-    // Une image s'en va seule : la seconde moitié d'un collage, dont l'image
-    // recollée a pris la place de la première.
+    // Retire une seule image : la seconde moitié d'un collage, l'image
+    // recollée ayant pris la place de la première.
     void removeItem(int index);
     void clearItems();
     int count() const { return m_items.size(); }
@@ -43,8 +43,9 @@ public:
 Q_SIGNALS:
     void picked(int index);
     void pickedTwice(int index);
-    // Clic droit sur une image : ce qu'on peut en faire est décidé par la
-    // fenêtre, qui est seule à savoir ce qui est choisi ailleurs.
+    // Clic droit sur une image. C'est la fenêtre qui décide des actions
+    // proposées, car elle seule connaît ce qui est sélectionné dans l'autre
+    // zone.
     void menuAsked(int index, const QPoint &where);
 
 protected:

@@ -7,17 +7,17 @@
 
 namespace {
 
-// A colour from the table's hue at a given lightness and saturation. HSL
-// rather than HSV, because what a pastel is is a colour pushed up towards
-// white with its hue left alone, and lightness is the axis that does that.
+// Une couleur obtenue à partir de la teinte du thème, pour une clarté et une
+// saturation données. HSL plutôt que HSV : une couleur pastel est une couleur
+// rapprochée du blanc à teinte constante, et c'est la clarté qui fait cela.
 QColor tint(int hue, qreal lightness, qreal saturation) {
     return QColor::fromHslF(qBound(0, hue, 359) / 360.0, qBound(0.0, saturation, 1.0),
                             qBound(0.0, lightness, 1.0));
 }
 
-// What is worn at the moment. The first table's hue until a game says
-// otherwise, so a palette asked for before anything is chosen is still a
-// palette rather than black on black.
+// La palette en cours. Une teinte par défaut est posée ici, de sorte qu'une
+// palette demandée avant tout choix soit une vraie palette, et non du noir sur
+// du noir.
 int g_hue = 150;
 bool g_dark = false;
 Palette g_worn;
@@ -51,8 +51,9 @@ QIcon tintedIcon(const QStringList &names, const QColor &ink) {
     }
     if (source.isNull()) return {};
 
-    // Each size the icon offers, painted through: the shape is kept and the
-    // colour thrown away, which is what tinting a one-colour icon means.
+    // Chaque taille proposée par l'icône est repeinte : la forme est
+    // conservée et la couleur remplacée, ce qui est précisément ce que
+    // signifie recolorer une icône monochrome.
     QIcon tinted;
     for (int size : {16, 22, 24, 32, 48}) {
         QPixmap artwork = source.pixmap(size, size);
@@ -77,19 +78,19 @@ Palette paletteForHue(int hue, bool dark) {
     Palette p;
     p.hue = qBound(0, hue, 359);
 
-    // The cloth is the one thing that is dark in both halves of the scheme. A
-    // card table is green baize with white cards on it, and a pale table with
-    // pale cards on it is not a card table -- it is a spreadsheet. So the felt
-    // stays deep and saturated whichever way the dark button is set, and what
-    // changes around it is the wood, the plaques and the lettering.
+    // Le tapis est la seule chose qui reste sombre dans les deux modes. Une
+    // table de jeu est un tapis foncé avec des cartes claires dessus ; un
+    // tapis clair sous des cartes claires ne se lit plus comme une table de
+    // jeu. Le tapis reste donc foncé et saturé quel que soit le mode, et ce
+    // qui change autour de lui, c'est le fond, les panneaux et le texte.
     p.felt = tint(hue, dark ? 0.165 : 0.248, dark ? 0.40 : 0.44);
     p.feltEdge = tint(hue, dark ? 0.085 : 0.145, dark ? 0.44 : 0.46);
-    // A thread a shade lighter than the cloth, which is what a weave looks
-    // like from across a room: not a line, a slightly brighter cloth.
+    // Le fil du tissage, à peine plus clair que le tapis : vu de loin, un
+    // tissage n'est pas un trait, mais un tapis un peu plus clair.
     p.feltWeave = tint(hue, dark ? 0.205 : 0.295, dark ? 0.36 : 0.40);
     p.feltText = tint(hue, dark ? 0.70 : 0.84, dark ? 0.26 : 0.34);
-    // Braid: the warm line around the cloth. Walked towards gold rather than
-    // taken from the hue, because that is what braid is.
+    // Le galon : la ligne chaude autour du tapis. Rapproché de l'or plutôt
+    // que dérivé de la teinte, car c'est ainsi qu'un galon se voit.
     p.trim = blendColours(tint(hue, 0.52, 0.30), QColor(0xd9, 0xb3, 0x64), 0.62);
     p.gold = QColor(0xe2, 0xbc, 0x6b);
 
@@ -120,16 +121,17 @@ Palette paletteForHue(int hue, bool dark) {
         p.hint = tint(hue, 0.58, 0.17);
         p.danger = QColor::fromHslF(0.015, 0.70, 0.58);
         p.field = tint(hue, 0.165, 0.22);
-        // A shade off white after dark: pure white paper on a dark table is a
-        // row of little lamps, and fifteen of them along the bottom of the
-        // window is a glare rather than a hand.
+        // Un blanc légèrement cassé en mode sombre : un papier blanc pur sur
+        // un fond foncé éblouit, et quinze cartes alignées en bas de la
+        // fenêtre feraient autant de petites lampes.
         p.cardFace = QColor(0xe9, 0xe6, 0xdd);
         p.cardInk = QColor(0x22, 0x24, 0x29);
         p.cardRed = QColor(0xb8, 0x2b, 0x3c);
     }
 
-    // The back of a card is the table's colour, deeper than the cloth so that
-    // a face-down hand reads as cards on felt rather than as a hole in it.
+    // Le dos d'une carte reprend la teinte du thème, plus foncée que le
+    // tapis, afin qu'une main face cachée se lise comme des cartes posées sur
+    // le tapis et non comme un trou dedans.
     p.cardBack = tint(hue, dark ? 0.34 : 0.40, 0.42);
     p.cardBackInk = tint(hue, dark ? 0.52 : 0.58, 0.44);
 
@@ -157,10 +159,10 @@ void setDarkMode(bool dark) {
 }
 
 QColor festiveColour(int index) {
-    // How far round the wheel each shade sits from the table's own hue, and how
-    // much lighter or darker it is drawn. Two sequences of different length, so
-    // that neighbouring sparks differ in both and a run of thirty never repeats
-    // itself.
+    // L'écart de chaque nuance par rapport à la teinte du thème sur le cercle
+    // des couleurs, et son écart de clarté. Deux suites de longueurs
+    // différentes, de sorte que deux étincelles voisines diffèrent sur les
+    // deux axes et qu'une série de trente ne se répète jamais.
     static const int kAside[] = {0, 17, -15, 29, -26, 8, -8, 34, -31, 23, -20, 5, 12, -12};
     static const qreal kStep[] = {0.0, -0.09, 0.08, -0.05, 0.12, 0.04, -0.13, 0.15};
 
@@ -174,8 +176,8 @@ QColor festiveColour(int index) {
 }
 
 QColor rivalColour(int hue) {
-    // Bright and a little pale: these are read against the cloth, which is
-    // dark in both halves of the scheme, so a rival's colour is lifted well
-    // clear of it rather than taken from the same band.
+    // Vive et un peu claire : ces couleurs se lisent sur le tapis, foncé dans
+    // les deux modes. La couleur d'un adversaire est donc nettement détachée
+    // de lui, au lieu d'être prise dans la même plage de clarté.
     return tint(hue, 0.66, 0.58);
 }

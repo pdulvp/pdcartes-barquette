@@ -7,8 +7,8 @@
 
 namespace {
 
-// Le choix est rangé dans les réglages du programme, pas dans le dossier
-// commun : chacun peut préférer un jeu différent.
+// Le choix est enregistré dans les réglages du programme, et non dans le
+// dossier commun : chaque programme peut employer un jeu différent.
 const char *kChosenKey = "cartes/jeu";
 const char *kBackKey = "cartes/dos";
 
@@ -47,8 +47,8 @@ void CardDecks::refresh() {
         const QFileInfoList files =
             dir.entryInfoList(pattern, QDir::Files | QDir::Readable, QDir::Name);
         for (const QFileInfo &file : files) {
-            // Lu une fois pour connaître son contenu ; le jeu choisi sera
-            // rechargé à la demande.
+            // Lu une fois pour connaître son contenu ; le jeu choisi est
+            // rechargé plus tard, à la demande.
             CardSet set;
             QString why;
             if (!set.load(file.absoluteFilePath(), &why)) continue;
@@ -66,7 +66,7 @@ void CardDecks::refresh() {
         }
     }
 
-    // Le fichier chargé a pu changer : on repart de zéro.
+    // Le fichier chargé a pu changer : le cache est vidé.
     m_loaded.clear();
     m_tried = false;
     m_current = CardSet();
@@ -82,7 +82,7 @@ const DeckEntry *CardDecks::entry(const QString &id) const {
 QString CardDecks::chosenId() const {
     QSettings settings;
     const QString kept = settings.value(QLatin1String(kChosenKey), builtInId()).toString();
-    // Un jeu dont le fichier a disparu ramène au jeu dessiné.
+    // Si le fichier du jeu choisi a disparu, on revient au jeu dessiné.
     if (kept != builtInId() && !entry(kept)) return builtInId();
     return kept;
 }

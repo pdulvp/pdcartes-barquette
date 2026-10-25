@@ -19,7 +19,8 @@ constexpr int kAddBack = -9000;
 constexpr qreal kGap = 5.0;
 constexpr qreal kCaption = 13.0;
 
-// Faute de jeu chargé, la forme d'une carte ordinaire.
+// Proportion d'une carte ordinaire, employée tant qu'aucun jeu n'est
+// chargé.
 constexpr qreal kDefaultAspect = 0.642;
 
 QString suitMark(int suit) {
@@ -79,7 +80,8 @@ void FaceGrid::relayout() {
     if (width() < 60 || height() < 60) return;
 
     const int backs = m_set ? m_set->backCount() : 0;
-    // Une rangée par couleur, puis une dernière : joker, dos, et le « + ».
+    // Une rangée par couleur, puis une dernière : le joker, les dos, et la
+    // case « + ».
     const int lastRow = 1 + backs + 1;
     const int columns = std::max(13, lastRow);
 
@@ -90,7 +92,7 @@ void FaceGrid::relayout() {
     qreal cellWidth = room / columns;
     qreal cellHeight = cellWidth / aspect;
 
-    // Cinq rangées, chacune avec sa légende sous elle.
+    // Cinq rangées, chacune avec sa légende en dessous.
     const qreal rowHeight = cellHeight + kCaption + kGap;
     const qreal wanted = rowHeight * 5 + kGap;
     if (wanted > height()) {
@@ -220,8 +222,8 @@ void FaceGrid::paintEvent(QPaintEvent *) {
         QPainterPath shape;
         shape.addRoundedRect(cell.box, 5, 5);
 
-        // La case elle-même : du papier quand elle est vide, et l'image
-        // quand elle en a une.
+        // La case elle-même : un fond uni quand elle est vide, l'image
+        // lorsqu'elle en contient une.
         QPixmap art;
         if (m_set && !adder) {
             const QSize want = cell.box.size().toSize();
@@ -253,7 +255,8 @@ void FaceGrid::paintEvent(QPaintEvent *) {
                 painter.drawLine(middle - QPointF(arm, 0), middle + QPointF(arm, 0));
                 painter.drawLine(middle - QPointF(0, arm), middle + QPointF(0, arm));
             } else {
-                // Une place vide porte le rang et la couleur qu'elle attend.
+                // Une case vide affiche le rang et la couleur qu'elle
+                // attend.
                 const int slot = isBack(cell.target) ? -1 : cell.target;
                 mark.setPixelSize(std::max(9, int(cell.box.height() * 0.30)));
                 painter.setFont(mark);

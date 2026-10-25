@@ -2,19 +2,19 @@
 
 #include <QString>
 
-// What this is and when it was made.
+// Ce qu'est ce binaire, et quand il a été produit.
 //
-// The version is the one in the VERSION file at the root of the source --
-// three numbers, moved on by hand when something is worth calling a new
-// version. The build is the moment the binary was compiled, as
-// yymmddhhmmss: no two builds carry the same one, which is what tells
-// yesterday's 1.0.0 from the one in front of you.
+// La version est celle du fichier VERSION, à la racine des sources : trois
+// nombres, incrémentés à la main quand un changement mérite une nouvelle
+// version. L'horodatage du build est le moment de la compilation, au format
+// aammjjhhmmss : deux builds n'ont jamais le même, ce qui permet de
+// distinguer le 1.0.0 d'hier de celui qu'on a devant soi.
 //
-// A released binary carries no build at all -- its version is its name, and
-// there is only one of it. So the build is empty there, and what reads it
-// has to allow for that.
+// Un binaire de version publiée ne porte aucun horodatage : son numéro de
+// version le désigne entièrement, puisqu'il n'en existe qu'un. L'horodatage y
+// est donc vide, et le code qui le lit doit le prévoir.
 //
-// Both are defined in a file written at each build; see
+// Les deux sont définis dans un fichier écrit à chaque build ; voir
 // cmake/GenerateVersion.cmake.
 extern const char *const kAtelierVersion;
 extern const char *const kAtelierBuildVersion;
@@ -22,8 +22,8 @@ extern const char *const kAtelierBuildVersion;
 inline QString appVersion() { return QString::fromLatin1(kAtelierVersion); }
 inline QString buildVersion() { return QString::fromLatin1(kAtelierBuildVersion); }
 
-// The two together, for a line that has room for both -- the version alone
-// when this is a release, there being no build to tell it from.
+// Les deux ensemble, pour un affichage qui a la place des deux. La version
+// seule s'il s'agit d'une version publiée, qui n'a pas d'horodatage.
 inline QString fullVersion() {
     const QString build = buildVersion();
     if (build.isEmpty()) {

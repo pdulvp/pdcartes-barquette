@@ -9,8 +9,9 @@
 
 namespace {
 
-// Qt se rabat sur « hicolor » quand le bureau n'a pas dit quel thème
-// employer, et hicolor est presque vide : on pointe vers un thème installé.
+// Qt se rabat sur « hicolor » quand le bureau n'indique pas quel thème
+// d'icônes employer, et hicolor est presque vide : on désigne donc un thème
+// réellement installé.
 void ensureIconTheme() {
     const QString configured = QIcon::themeName();
     if (!configured.isEmpty() && configured != QLatin1String("hicolor")) return;

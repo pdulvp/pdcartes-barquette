@@ -1,24 +1,24 @@
-# What the game says about itself: the version it was given, and the moment
-# this particular build was made.
+# Ce que le programme annonce de lui-même : la version qui lui a été donnée,
+# et le moment où ce build précis a été produit.
 #
-# The version comes from the VERSION file, moved on by hand (or by the bump
-# tasks); the stamp is taken here at every build, so that two builds of the
-# same version are still told apart -- which is what a version alone cannot
-# do for something that is rebuilt rather than released.
+# La version vient du fichier VERSION, incrémenté à la main ou par les cibles
+# de bump. L'horodatage est pris ici à chaque build, de sorte que deux builds
+# d'une même version restent distinguables : la version seule ne suffit pas
+# pour un programme qu'on recompile plutôt qu'on publie.
 #
-# Written in two forms: a source file for the program to carry, and a bare
-# line for the packaging to read, cpack running long after the compiler has
-# finished.
+# Deux formes sont écrites : un fichier source compilé dans le programme, et
+# une ligne seule que la mise en paquet relit, cpack s'exécutant bien après le
+# compilateur.
 #
-# Avec RELEASE, pas d'empreinte du tout : une version se nomme par son numéro
-# et rien d'autre, et deux paquets d'une même version n'ont pas à se
-# distinguer -- il n'y en a qu'un. C'est la cible release qui le demande, et
-# elle seule ; voir CMakeLists.txt.
+# Avec RELEASE, aucun horodatage : une version est désignée par son numéro
+# seul, et deux paquets d'une même version n'ont pas à se distinguer puisqu'il
+# n'y en a qu'un. Seule la cible release le demande ; voir CMakeLists.txt.
 
-# Packaging builds the program again from inside cpack, after cpack has read
-# the version it is naming the package with. Stamping it again there would
-# put one version on the package and a later one in the binary inside it, so
-# while packaging the stamp is left alone.
+# La mise en paquet recompile le programme depuis cpack, après que cpack a lu
+# la version dont il nomme le paquet. Réhorodater à ce moment mettrait une
+# version sur le paquet et une version postérieure dans le binaire qu'il
+# contient : pendant la mise en paquet, l'horodatage est donc laissé tel
+# quel.
 if(DEFINED ENV{CARTOTHEQUE_KEEP_VERSION} AND EXISTS "${OUT_TXT}")
     return()
 endif()
@@ -30,11 +30,11 @@ else()
 endif()
 
 file(WRITE "${OUT_CPP}"
-"// Written at every build by cmake/GenerateVersion.cmake. Not to be edited,
-// and not to be checked in: it is this build, not this source.
+"// Écrit à chaque build par cmake/GenerateVersion.cmake. Ne pas le modifier
+// ni le versionner : il décrit ce build, et non ce code source.
 //
-// extern, because a const at namespace scope is this file's own otherwise,
-// and the program is to read them from elsewhere.
+// extern, car une constante déclarée dans la portée de nommage serait propre
+// à ce fichier, alors que le programme doit la lire depuis ailleurs.
 extern const char *const kAtelierVersion;
 const char *const kAtelierVersion = \"${VERSION}\";
 extern const char *const kAtelierBuildVersion;

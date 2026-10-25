@@ -1,20 +1,21 @@
-# Moves the version on by one, in whichever of its three parts is asked for:
+# Incrémente la version, dans celle de ses trois parties qui est demandée :
 #
 #   cmake -DFILE=VERSION -DPART=major|minor|patch -P cmake/BumpVersion.cmake
 #
-# Raising a part sets the ones under it back to zero, which is what makes
-# 1.1.9 followed by a minor bump read 1.2.0 rather than 1.2.9. The build
-# stamp beside it is untouched: that one says when, this one says what.
+# Incrémenter une partie remet à zéro celles qui la suivent : après 1.1.9, une
+# incrémentation mineure donne 1.2.0 et non 1.2.9. L'horodatage du build n'est
+# pas touché : il dit quand le binaire a été produit, la version dit ce qu'il
+# contient.
 
 if(NOT DEFINED FILE OR NOT DEFINED PART)
-    message(FATAL_ERROR "BumpVersion.cmake wants -DFILE=<path> and -DPART=major|minor|patch")
+    message(FATAL_ERROR "BumpVersion.cmake attend -DFILE=<chemin> et -DPART=major|minor|patch")
 endif()
 
 file(READ "${FILE}" CURRENT)
 string(STRIP "${CURRENT}" CURRENT)
 
 if(NOT CURRENT MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)$")
-    message(FATAL_ERROR "'${CURRENT}' in ${FILE} is not a version of three numbers")
+    message(FATAL_ERROR "'${CURRENT}' dans ${FILE} n'est pas une version de trois nombres")
 endif()
 
 set(MAJOR ${CMAKE_MATCH_1})
@@ -31,7 +32,7 @@ elseif(PART STREQUAL "minor")
 elseif(PART STREQUAL "patch" OR PART STREQUAL "micro")
     math(EXPR PATCH "${PATCH} + 1")
 else()
-    message(FATAL_ERROR "PART is major, minor or patch, not '${PART}'")
+    message(FATAL_ERROR "PART vaut major, minor ou patch, et non '${PART}'")
 endif()
 
 set(NEXT "${MAJOR}.${MINOR}.${PATCH}")

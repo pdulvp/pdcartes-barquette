@@ -1,7 +1,8 @@
-# La cartothèque : le format des jeux de cartes, la liste des jeux installés,
-# et le style partagé (palette, habillage des dialogues).
+# La bibliothèque partagée : le format des jeux de cartes, la liste des jeux
+# installés, et le style commun (palette, habillage des boîtes de dialogue).
 #
-# Bibliothèque statique : elle est liée dans le binaire de qui l'emploie.
+# Bibliothèque statique : elle est liée dans le binaire du programme qui
+# l'emploie.
 #
 #   add_subdirectory(../pdcartes-barquette/lib cartotheque)
 #   target_link_libraries(monjeu PRIVATE cartotheque)

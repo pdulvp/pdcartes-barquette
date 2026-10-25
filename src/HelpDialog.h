@@ -4,7 +4,7 @@
 
 class QTextBrowser;
 
-// Le mode d'emploi de l'atelier, affiché dans la fenêtre.
+// Le mode d'emploi du programme, affiché dans une boîte de dialogue.
 class HelpDialog : public QDialog {
     Q_OBJECT
 

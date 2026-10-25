@@ -2,7 +2,7 @@
 Type=Application
 Name=Atelier des cartes
 GenericName=Éditeur de jeux de cartes
-Comment=Fabriquer un jeu de cartes pour le rami et la belote
+Comment=Fabriquer un jeu de cartes à partir d'images ou d'une DLL Windows
 Exec=pdcartes-barquette
 Icon=applications-graphics
 Terminal=false

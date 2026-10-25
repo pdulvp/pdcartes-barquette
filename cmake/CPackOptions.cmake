@@ -1,23 +1,23 @@
-# Read by cpack as it runs, which is after the build: by then this build has
-# stamped itself with the time it was made, and that stamp is what separates
-# one package of a version from the next. Setting it in CMakeLists would
-# freeze it at the moment the project was configured, which may be weeks of
-# builds ago.
+# Lu par cpack pendant son exécution, c'est-à-dire après le build : à ce
+# moment, le build a inscrit son horodatage, et c'est lui qui distingue deux
+# paquets d'une même version. Fixer cette valeur dans CMakeLists la figerait au
+# moment de la configuration du projet, qui peut précéder de plusieurs semaines
+# de builds.
 #
-# L'empreinte va dans la version, derrière un `~`, et non dans le champ de
-# release de Debian. Deux raisons :
+# L'horodatage va dans la version, derrière un `~`, et non dans le champ de
+# release de Debian, pour deux raisons :
 #
-#  - `~` se classe avant tout, le vide compris : `1.0.0~261024225112` est
-#    *antérieur* à `1.0.0`, ce qu'un build de travail est. Dans le champ de
-#    release il serait postérieur, et un build de travail installé empêcherait
-#    la version de s'installer par-dessus ;
-#  - le champ de release, c'est la énième mise en paquet d'une même version --
-#    une dépendance corrigée, un résumé réécrit. L'y mettre, c'est occuper
-#    une case qui sert à autre chose.
+#  - `~` se classe avant tout le reste, y compris avant rien :
+#    `1.0.0~261024225112` est *antérieur* à `1.0.0`, ce qui correspond bien à
+#    un build de travail. Placé dans le champ de release, il serait postérieur,
+#    et un build de travail installé empêcherait la version de le remplacer ;
+#  - le champ de release désigne les mises en paquet successives d'une même
+#    version — une dépendance corrigée, un résumé réécrit. L'employer ici
+#    occuperait un champ qui sert à autre chose.
 #
-# La cible release, elle, ne laisse pas d'empreinte du tout : le paquet
-# s'appelle `1.0.0` et c'est la version. Rien à faire ici pour cela, le test
-# ci-dessous ne trouve qu'une empreinte vide.
+# La cible release, elle, n'inscrit aucun horodatage : le paquet s'appelle
+# `1.0.0`, ce qui est la version. Rien de particulier à faire ici pour cela :
+# le test ci-dessous trouve simplement un horodatage vide.
 
 if(EXISTS "${CPACK_BUILD_VERSION_FILE}")
     file(READ "${CPACK_BUILD_VERSION_FILE}" _cartotheque_build)

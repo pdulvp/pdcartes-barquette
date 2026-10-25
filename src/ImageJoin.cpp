@@ -9,8 +9,8 @@
 
 namespace {
 
-// Une image de la corbeille, rendue en pixels. Un SVG est dessiné à sa taille
-// naturelle : on ne recolle pas un dessin vectoriel sans le rendre d'abord.
+// Une image de la liste, rendue en pixels. Un SVG est dessiné à sa taille
+// naturelle : un dessin vectoriel doit être rendu avant d'être recollé.
 QImage readImage(const DllImage &image) {
     QBuffer buffer;
     buffer.setData(image.bytes);
@@ -19,9 +19,9 @@ QImage readImage(const DllImage &image) {
     return reader.read();
 }
 
-// De quoi arrêter un collage qui ne tiendrait pas : la planche entière d'un
-// jeu à double résolution fait quatre millions de pixels, et il y a de la
-// marge jusqu'ici.
+// Limite destinée à écarter un collage déraisonnable. La planche entière d'un
+// jeu en double résolution fait quatre millions de pixels : la marge est donc
+// confortable.
 constexpr qreal kMostPixels = 80e6;
 
 QString tell(const char *text) { return QCoreApplication::translate("imagejoin", text); }
@@ -42,15 +42,17 @@ DllImage joinImages(const DllImage &anchor, const DllImage &other, JoinSide side
                  : QSize(qMax(first.width(), second.width()), first.height() + second.height());
     if (qreal(room.width()) * room.height() > kMostPixels) {
         if (why) {
-            *why = tell("Le collage ferait une image de %1 × %2 pixels, qui ne sert à rien.")
+            *why = tell("Le collage produirait une image de %1 × %2 pixels, ce qui est "
+                        "trop grand.")
                        .arg(room.width())
                        .arg(room.height());
         }
         return {};
     }
 
-    // Celle qu'on colle passe devant ou derrière selon le côté : à gauche et
-    // en haut, c'est elle qui commence et l'ancre qui est décalée.
+    // L'image collée se place avant ou après selon le côté demandé : à
+    // gauche et au-dessus, c'est elle qui commence, et c'est l'ancre qui est
+    // décalée.
     QPoint anchorAt(0, 0);
     QPoint otherAt(0, 0);
     switch (side) {
@@ -71,8 +73,9 @@ DllImage joinImages(const DllImage &anchor, const DllImage &other, JoinSide side
     QByteArray bytes;
     QBuffer out(&bytes);
     out.open(QIODevice::WriteOnly);
-    // En PNG : les quarts d'une planche sont des JPEG, et une planche recollée
-    // n'a pas à repasser par une compression qui abîme ses traits.
+    // En PNG : les quarts d'une planche sont des JPEG, et une planche
+    // recollée n'a pas à subir une seconde compression avec perte, qui
+    // dégraderait ses traits.
     if (!made.save(&out, "PNG")) {
         if (why) *why = tell("Le collage n'a pas pu être écrit.");
         return {};

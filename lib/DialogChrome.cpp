@@ -15,28 +15,29 @@
 
 namespace {
 
-// The coloured strip down the left of a dialog: a band of the table's colour
-// with the dialog's business written up it, wide enough for the words to be
-// read at the size the rest of the dialog is set in.
+// Le bandeau coloré le long du bord gauche d'une boîte de dialogue : une
+// bande de la couleur du thème portant le titre de la boîte, assez large pour
+// que le texte reste lisible à la taille employée dans le reste de la
+// boîte.
 constexpr int kBannerWidth = 36;
 
-// The strip itself, with the word it carries set sideways, reading upwards
-// the way a book's spine does.
+// Le bandeau lui-même, dont le texte est écrit verticalement et se lit de bas
+// en haut, comme le dos d'un livre.
 class EdgeBanner : public QWidget {
 public:
     EdgeBanner(const QString &text, QWidget *parent) : QWidget(parent), m_text(text) {
         setFixedWidth(kBannerWidth);
-        // Nothing to click: the strip is a label, and a drag on it should
-        // reach whatever is underneath.
+        // Rien à cliquer : le bandeau est une étiquette, et un glissement
+        // dessus doit atteindre ce qui se trouve en dessous.
         setAttribute(Qt::WA_TransparentForMouseEvents);
     }
 
 protected:
     void paintEvent(QPaintEvent *) override {
         QPainter painter(this);
-        // Its colours come from its palette rather than being kept here, so
-        // that recolouring the chrome is a matter of handing its parts new
-        // palettes.
+        // Les couleurs sont prises dans la palette du widget plutôt que
+        // conservées ici : recolorer l'habillage revient alors à donner une
+        // nouvelle palette à chacune de ses parties.
         painter.fillRect(rect(), palette().color(QPalette::Window));
 
         QFont heading = font();
@@ -62,8 +63,8 @@ private:
     QString m_text;
 };
 
-// Fields with an edge and a little padding, and the table's colour to say
-// which one the keyboard is in.
+// Les champs reçoivent un filet et un peu de marge intérieure, et la couleur
+// du thème indique celui qui a le focus clavier.
 QString styleSheetFor(const Palette &scheme) {
     return QStringLiteral(R"(
         QLineEdit, QComboBox, QListWidget, QAbstractScrollArea {
@@ -93,11 +94,11 @@ QString styleSheetFor(const Palette &scheme) {
             font-weight: bold;
         }
         QLabel[dialogHint="true"] { color: %9; }
-        /* The switches, drawn here rather than left to the platform style: a
-           desktop style hands a checkbox an indicator in its own colours, and
-           on a pale tinted form that lands anywhere between invisible and a
-           black hole. Filled with the table's own colour when it is on, which
-           is the plainest way there is of saying so. */
+        /* Les cases à cocher sont dessinées ici plutôt que laissées au style
+           du bureau : celui-ci les dessine dans ses propres couleurs, ce qui
+           donne, sur une surface claire teintée, un résultat allant de
+           l'invisible au trou noir. Une case cochée est remplie de la couleur
+           du thème, ce qui est la façon la plus simple de le signaler. */
         QCheckBox { spacing: 9px; }
         QCheckBox::indicator {
             width: 15px;
@@ -111,11 +112,12 @@ QString styleSheetFor(const Palette &scheme) {
             background: %4;
             border: 1px solid %4;
         }
-        /* The rivals' list in the settings scrolls, and a scroll area left to
-           the platform style arrives as a sunken grey box with a grey bar down
-           the side -- a window from another application dropped into the
-           middle of the form. Its frame and its viewport are taken off so that
-           what scrolls is the form itself. */
+        /* Certaines listes défilent, et une zone de défilement laissée au
+           style du bureau apparaît comme un cadre gris enfoncé avec une barre
+           grise sur le côté, c'est-à-dire comme la fenêtre d'un autre
+           programme posée au milieu du formulaire. Son cadre et le fond de sa
+           zone visible sont donc supprimés, afin que ce soit le formulaire
+           lui-même qui défile. */
         QScrollArea { border: none; background: transparent; }
         QScrollArea > QWidget > QWidget { background: transparent; }
         QScrollBar:vertical {
@@ -131,8 +133,8 @@ QString styleSheetFor(const Palette &scheme) {
         QScrollBar::handle:vertical:hover { background: %4; }
         QScrollBar::add-line, QScrollBar::sub-line { height: 0; width: 0; }
         QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
-        /* The rules are a long document, so the dialog that holds them is a
-           text browser: on the form's own surface, with no frame of its own. */
+        /* Les textes longs sont affichés dans un QTextBrowser : sur la
+           surface du formulaire, et sans cadre propre. */
         QTextBrowser {
             background: %1;
             color: %2;
@@ -140,19 +142,20 @@ QString styleSheetFor(const Palette &scheme) {
             border-radius: 8px;
             padding: 6px 10px;
         }
-        /* Radio buttons, drawn here for the same reason the switches are.
-           Filled round when chosen rather than ringed: a thick border changes
-           the box the radius is measured against, and the circle comes out a
-           rounded square -- which is the shape next to it and means something
-           else. */
+        /* Les boutons radio sont dessinés ici pour la même raison que les
+           cases à cocher. Celui qui est choisi est rempli plutôt que cerclé :
+           un filet épais modifie la boîte sur laquelle le rayon est calculé, et
+           le cercle devient un carré arrondi — c'est-à-dire la forme de la case
+           à cocher voisine, qui signifie autre chose. */
         QRadioButton { spacing: 9px; }
         QRadioButton::indicator {
             width: 15px;
             height: 15px;
             border: 1px solid %3;
-            /* Half of fifteen plus the two border pixels, and not a pixel
-               more: Qt drops a radius larger than half the box rather than
-               clamping it, and the circle comes out a square. */
+            /* La moitié de quinze, plus les deux pixels de filet, et pas un
+               pixel de plus : Qt ignore un rayon supérieur à la moitié de la
+               boîte au lieu de le ramener à cette valeur, et le cercle devient
+               alors un carré. */
             border-radius: 8px;
             background: %1;
         }
@@ -168,17 +171,18 @@ QString styleSheetFor(const Palette &scheme) {
              blendColours(scheme.face, scheme.surfaceText, 0.12).name(), scheme.hint.name());
 }
 
-// What each part of the chrome is called, so that recolouring it later can
-// find the parts again without the dialog having to keep hold of them.
+// Le nom de chaque partie de l'habillage, afin qu'une recoloration ultérieure
+// puisse les retrouver sans que la boîte ait à en conserver les pointeurs.
 const char *kBannerName = "dialogBanner";
 const char *kBodyName = "dialogBody";
 const char *kFooterName = "dialogFooter";
 const char *kRuleName = "dialogRule";
 
 void colourChrome(QDialog *dialog, const Palette &scheme) {
-    // The style sheet goes on first. Re-setting one makes the style unpolish
-    // the whole dialog and hand every widget back the palette it had saved
-    // at the first polish, so palettes set before this call would be wiped.
+    // La feuille de style est posée en premier. En reposer une fait que le
+    // style « dépolit » toute la boîte et redonne à chaque widget la palette
+    // qu'il avait au premier polissage : les palettes posées avant cet appel
+    // seraient donc effacées.
     dialog->setStyleSheet(styleSheetFor(scheme));
 
     if (QWidget *banner = dialog->findChild<QWidget *>(QLatin1String(kBannerName))) {
@@ -214,8 +218,8 @@ DialogChrome applyDialogChrome(QDialog *dialog, const QString &bannerText) {
     fieldsLayout->setContentsMargins(kDialogMargin, kDialogMargin, kDialogMargin, kDialogMargin);
     fieldsLayout->setSpacing(kDialogRowSpacing);
 
-    // A rule, then the buttons in a band of the button colour: what is being
-    // chosen, then what is done about it.
+    // Un filet, puis les boutons dans une bande de la couleur des boutons :
+    // d'abord ce qui est à régler, ensuite ce qu'on en fait.
     auto *rule = new QFrame(dialog);
     rule->setObjectName(QLatin1String(kRuleName));
     rule->setFrameShape(QFrame::HLine);
@@ -266,8 +270,8 @@ void markHintLabel(QWidget *label) {
 }
 
 namespace {
-// What the two parts of a heading are called, so that recolouring one later
-// can find them again.
+// Le nom des deux parties d'un titre, afin qu'une recoloration ultérieure
+// puisse les retrouver.
 const char *kHeadingLabel = "dialogHeadingLabel";
 const char *kHeadingRule = "dialogHeadingRule";
 } // namespace
@@ -299,8 +303,8 @@ QWidget *dialogSectionHeading(QWidget *parent, const QString &text) {
     bold.setBold(true);
     label->setFont(bold);
     QPalette ink = label->palette();
-    // The table's colour, which is what marks the dialog as this game's: the
-    // banner down the side is the same colour.
+    // La couleur du thème, celle-là même que porte le bandeau latéral : c'est
+    // ce qui rattache la boîte au programme.
     ink.setColor(QPalette::WindowText, currentPalette().accent);
     label->setPalette(ink);
     rows->addWidget(label);

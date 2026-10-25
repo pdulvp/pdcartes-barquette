@@ -1,39 +1,40 @@
 # L'atelier des cartes
 
-De quoi fabriquer un jeu de cartes pour les jeux de la maison — le rami
-(`card-sol`) et la belote (`belottesol`) — écrit en C++17 avec Qt 6.
+Un programme pour fabriquer des jeux de cartes, écrit en C++17 avec Qt 6. On
+lui donne des images, ou une DLL Windows dont on extrait les images, on place
+les faces et les dos dans une grille, et il produit **un seul fichier** à
+copier dans le dossier des cartes. Les programmes de jeu qui lisent ce format
+le proposent alors dans leurs réglages : rien à installer, aucune bibliothèque
+à charger.
 
-On y dépose des images, ou on y ouvre une DLL pour Windows, on range les
-faces et les dos dans une grille, et il en sort **un fichier** à déposer dans le
-dossier des cartes. Pas d'installation, pas de bibliothèque à charger : les
-jeux le proposent dans leurs réglages au lancement suivant.
+![La fenêtre au lancement](docs/fenetre-au-lancement.png)
 
 ## Les deux moitiés du projet
 
 | | |
 |---|---|
-| `lib/` | **la cartothèque** : le format, la liste des jeux installés, et le style que les deux jeux recopiaient chacun de son côté |
-| `src/` | **l'atelier** : le programme qui écrit les fichiers que la cartothèque lit |
+| `lib/` | la bibliothèque `cartotheque` : le format de fichier, la liste des jeux installés, et le style commun aux programmes |
+| `src/` | l'atelier : le programme qui écrit les fichiers que la bibliothèque relit |
 
-La cartothèque est une **bibliothèque statique**. Elle entre dans le binaire de
-qui l'emploie : `ramisol`, `belotesol` et `pdcartes-barquette` restent chacun un
-exécutable et rien d'autre, et rien n'est installé à côté d'eux.
+`cartotheque` est une **bibliothèque statique** : elle est liée dans le binaire
+du programme qui l'emploie, qui reste donc un exécutable seul, sans rien
+d'installé à côté.
 
-Un programme s'en sert depuis un dossier voisin :
+Un programme voisin s'en sert ainsi :
 
 ```cmake
 add_subdirectory(../pdcartes-barquette/lib cartotheque)
 target_link_libraries(monjeu PRIVATE cartotheque)
 ```
 
-et les en-têtes s'incluent par leur nom — `#include "CardSet.h"`,
-`#include "Palette.h"` — comme avant qu'ils soient partagés.
+Les en-têtes s'incluent par leur nom seul : `#include "CardSet.h"`,
+`#include "Palette.h"`.
 
 ## Le format
 
-Un jeu de cartes est **un fichier**, extension `.cartes`. Il porte les
-cinquante-deux faces, le joker, autant de dos qu'on veut, et le nom de qui l'a
-fait. Il s'échange comme n'importe quel fichier.
+Un jeu de cartes est **un fichier** d'extension `.cartes`. Il contient les
+cinquante-deux faces, le joker, autant de dos qu'on veut, et le nom de
+l'auteur. Il se copie et s'échange comme n'importe quel fichier.
 
 ```
 « CARTES »       6 octets, pour reconnaître le fichier
@@ -41,187 +42,193 @@ quint16          la version du format
 QByteArray       tout le reste, compressé
 ```
 
-et le reste est un `QDataStream` : le nom, l'auteur, la note, la taille
-naturelle d'une face, puis les faces (rang, couleur, genre, octets) et les dos
-(nom, genre, octets). Les images sont gardées **telles qu'elles arrivent** — un
-PNG reste un PNG, un SVG reste un SVG.
+Le reste est un `QDataStream` : le nom, l'auteur, la note, la taille de
+référence d'une face, puis les faces (rang, couleur, type d'image, octets) et
+les dos (nom, type d'image, octets). Les images sont conservées **telles
+quelles** : un PNG reste un PNG, un SVG reste un SVG.
 
-La **taille naturelle** est celle que portent la plupart des faces, mesurée sur
-elles à chaque rangement et à chaque ouverture. C'est de là que les jeux
-tiennent la forme de leurs cartes : un jeu qui annonce une taille presque
-carrée fait un tapis de cartes presque carrées, même quand ses images, elles,
-sont bien des cartes. Une planche posée un instant dans une place puis reprise
-ne laisse donc pas sa forme derrière elle, et un jeu écrit par un atelier plus
-ancien se rattrape à la simple ouverture.
+La **taille de référence** est celle que partagent la plupart des faces. Elle
+est recalculée à chaque ajout d'image et à chaque ouverture de fichier. C'est
+elle qui donne aux programmes de jeu la proportion des cartes à afficher : un
+jeu qui déclare une taille presque carrée produit un affichage de cartes
+presque carrées, même si ses images sont bien des cartes. Comme elle est
+mesurée sur l'ensemble des faces, une planche placée un instant dans une case
+puis retirée ne laisse pas sa proportion derrière elle, et un fichier écrit par
+une version plus ancienne de l'atelier se corrige à la simple ouverture.
 
-Les rangs vont de 1 (l'as) à 13 (le roi), zéro pour le joker ; les couleurs de
-0 à 3 dans l'ordre pique, cœur, carreau, trèfle. Chaque programme traduit sa
-propre numérotation en arrivant : la belote compte son as à 14 parce que c'est
-là qu'il est dans ce jeu-là, et le format n'a pas à connaître les règles de
-personne.
+Les rangs vont de 1 (l'as) à 13 (le roi), et valent zéro pour le joker. Les
+couleurs vont de 0 à 3, dans l'ordre pique, cœur, carreau, trèfle. Chaque
+programme convertit sa propre numérotation à la lecture : un jeu où l'as est la
+carte la plus forte peut le compter 14 chez lui, le format n'a pas à connaître
+les règles.
 
 ## Le dossier des cartes
 
-`~/.config/cartes`, et il est **commun** à tous les jeux de la maison : un jeu
-déposé là se retrouve dans le rami et dans la belote sans qu'on ait à le
-déposer deux fois. Ce que chaque jeu garde pour lui, c'est lequel il a choisi —
-rien n'empêche de jouer au rami avec un jeu et à la belote avec un autre.
+`~/.config/cartes`, **commun** à tous les programmes qui lisent ce format : un
+fichier copié là est disponible dans tous, sans avoir à le copier plusieurs
+fois. Chaque programme garde de son côté lequel il a choisi, de sorte qu'on
+peut jouer à deux jeux différents avec deux jeux de cartes différents.
 
-Le bouton **Installer** fait le dépôt tout seul.
+Le bouton **Installer** fait la copie.
 
 ## Fabriquer un jeu
 
-Les places du jeu à gauche, les images qu'on a sous la main à droite.
+Les cases du jeu à gauche, les images ouvertes à droite.
 
 | | |
 |---|---|
 | **Images…** | ouvre des fichiers un par un : PNG, SVG, BMP, JPEG, GIF |
-| **Dossier…** | ouvre toutes les images d'un dossier d'un coup |
-| **Bibliothèque…** | sort les images d'une DLL pour Windows |
-| **Autre set…** | prend les cartes d'un `.cartes` déjà fait, pour en copier ici |
-| clic sur une place | la désigne |
-| clic sur une image | la désigne |
-| clic droit sur une image | la colle à celle qui est désignée, d'un côté ou de l'autre |
-| **Ranger ici**, ou double-clic | met l'image désignée dans la place désignée |
-| **Découper…** | débite une planche de plusieurs cartes en morceaux d'une taille donnée |
-| **Marges** | met le cadre d'une planche dehors avant de la quadriller |
-| clic droit sur une place | la vide |
-| `←` `→` | passer d'une place à la suivante |
+| **Dossier…** | ouvre toutes les images d'un dossier |
+| **Bibliothèque…** | extrait les images d'une DLL Windows |
+| **Autre set…** | ouvre les cartes d'un `.cartes` existant, pour en reprendre |
+| clic sur une case | la sélectionne |
+| clic sur une image | la sélectionne |
+| clic droit sur une image | la colle à l'image sélectionnée, d'un côté ou de l'autre |
+| **Ranger ici**, ou double-clic | place l'image sélectionnée dans la case sélectionnée |
+| **Découper…** | découpe une planche de plusieurs cartes en morceaux d'une taille donnée |
+| **Marges** | retire le cadre d'une planche avant de la quadriller |
+| clic droit sur une case | la vide |
+| `←` `→` | passer à la case précédente ou suivante |
 | `Ctrl+S` / `Ctrl+O` | enregistrer / ouvrir |
-| `F1` | l'aide, qui dit tout ceci dans la fenêtre |
+| `F1` | l'aide, qui reprend tout ceci dans la fenêtre |
 
-Après chaque rangement la place désignée **avance toute seule** à la suivante
-qui est vide, et les images déjà rangées portent une pastille : ranger
-cinquante-trois images est un travail de suite, pas cinquante-trois décisions.
+Après chaque placement, la sélection **avance automatiquement** à la case vide
+suivante, et les images déjà placées portent une pastille : placer
+cinquante-trois images demande peu d'attention.
 
-Les dos sont au bout de la dernière rangée, après le joker ; la case **+** en
+Les dos sont au bout de la dernière rangée, après le joker. La case **+** en
 ajoute un.
 
-**Autre set…** met les faces et les dos d'un jeu déjà fait sous la main sans
-toucher à celui qu'on tient : de quoi reprendre deux figures d'un jeu et les
-dos d'un autre. Ces images-là savent la place qu'elles tenaient, et **Deviner
-la correspondance** les y remet toutes d'un coup.
+**Autre set…** ouvre les faces et les dos d'un jeu existant dans la liste des
+images, sans toucher au jeu en cours : on peut ainsi reprendre deux figures
+d'un jeu et les dos d'un autre. Ces images connaissent la case qu'elles
+occupaient, et **Deviner la correspondance** les y replace toutes.
 
-Rien n'oblige à tout remplir. Un jeu qui n'a que ses figures s'installe comme
-un autre : **les jeux dessinent eux-mêmes ce qui manque.**
+Il n'est pas nécessaire de tout remplir : un jeu qui n'a que ses figures
+s'installe comme un autre, car **les programmes de jeu dessinent eux-mêmes les
+cartes manquantes**.
 
-## Les DLL pour Windows
+## Les DLL Windows
 
-Certaines DLL peuvent contenir des images de cartes.
+Certaines DLL contiennent des images de cartes.
 
 | | |
 |---|---|
-| NE | les bibliothèques 16 bits |
-| PE32 | le portage 32 bits |
-| PE32+ | le même en 64 bits |
+| NE | bibliothèques 16 bits |
+| PE32 | 32 bits |
+| PE32+ | 64 bits |
 
-Les bitmaps en sortent avec les quatorze octets d'en-tête que Windows ne range
-pas avec eux ; les PNG et les JPEG des bibliothèques récentes sortent tels
-quels. Ce qui est enfermé dans une archive — les bibliothèques de Windows 7
-gardent leurs jeux dans des cabinets — n'en sort pas, et l'atelier dit combien
-de ressources il a laissées de côté.
+Les bitmaps sont extraits avec les quatorze octets d'en-tête que Windows ne
+stocke pas avec eux ; les PNG et les JPEG des bibliothèques récentes sont
+extraits tels quels. Les ressources contenues dans une archive — les
+bibliothèques de Windows 7 rangent leurs images dans des fichiers `.cab` — ne
+peuvent pas être extraites, et l'atelier indique combien de ressources il a
+ignorées.
 
-**Deviner la correspondance** applique l'ordre connu : ressources 1 à 52 pour
-les cartes, couleur par couleur de l'as au roi, et 53 à 64 pour les douze dos.
-Il dit ensuite de vérifier la grille, et ce n'est pas une formule : l'ordre des
-couleurs n'a pas toujours été le même d'une version à l'autre.
+**Deviner la correspondance** applique l'ordre habituel de ces
+bibliothèques : les ressources 1 à 52 pour les cartes, couleur par couleur de
+l'as au roi, et 53 à 64 pour les douze dos. L'atelier demande ensuite de
+vérifier la grille, car l'ordre des couleurs a changé d'une version de Windows
+à l'autre.
 
-**Rendre les coins transparents** efface la couleur du tapis d'époque autour
-des coins arrondis. Elle part des quatre coins et efface de proche en proche
-tant que la couleur ne change pas — et non partout où cette couleur se trouve :
-le blanc du coin est aussi celui du milieu de la carte.
+**Rendre les coins transparents** efface la couleur de fond autour des coins
+arrondis. L'effacement part des quatre coins et se propage de pixel en pixel
+tant que la couleur ne change pas. Il ne supprime pas tous les pixels de cette
+couleur : le blanc du coin est souvent aussi celui du milieu de la carte.
 
 ## Les planches
 
-Les jeux de cartes récents ne rangent plus une image par carte : ils en mettent
-cinquante-deux, ou cent quarante, sur **une seule image** en rangées et en
-colonnes — le `CardGames.dll` de Windows 7 n'a que des planches.
+Les jeux de cartes récents ne contiennent plus une image par carte : ils en
+placent cinquante-deux, ou cent quarante, sur **une seule image** en rangées et
+en colonnes. Le `CardGames.dll` de Windows 7 ne contient que des planches.
 
-**Découper…** débite l'image désignée. On lui donne la **taille d'un morceau**
-— largeur et hauteur en pixels — et le découpage se dessine sur l'image pendant
-qu'on écrit : des traits qui ne tombent pas entre les cartes disent que la
-taille n'est pas la bonne avant qu'on ait découpé. **Rogner les bords** retire
-quelques pixels tout autour de chaque morceau, de quoi laisser derrière soi le
-trait qui sépare les cartes.
+**Découper…** découpe l'image sélectionnée. On indique la **taille d'un
+morceau** — largeur et hauteur en pixels — et le découpage se dessine sur
+l'image à mesure qu'on saisit les valeurs : des traits qui ne tombent pas entre
+les cartes signalent une taille incorrecte avant tout découpage. **Rogner les
+bords** retire quelques pixels tout autour de chaque morceau, de quoi supprimer
+le trait qui sépare les cartes.
 
-Une taille plutôt qu'un nombre de colonnes : les morceaux font alors **tous
-exactement cette taille-là**. Un nombre de colonnes partage la planche en parts
-égales, et des parts égales tombent entre deux pixels dès que la planche ne se
-divise pas juste — les cartes sortent décalées d'un pixel les unes des autres,
-et le décalage ne se rattrape plus. Ce qui reste au bord fait un dernier
-morceau plus petit, dessiné en pointillé, jamais agrandi, et annoncé en toutes
-lettres sous les champs : c'est presque toujours une marge qu'on n'avait pas
-vue.
+Une taille plutôt qu'un nombre de colonnes, afin que les morceaux fassent
+**tous exactement cette taille**. Un nombre de colonnes divise la planche en
+parts égales, et des parts égales tombent entre deux pixels dès que la largeur
+de la planche n'est pas un multiple du nombre de colonnes : les cartes sortent
+alors décalées d'un pixel les unes par rapport aux autres, et ce décalage ne se
+corrige plus. Ce qui reste au bord forme un dernier morceau plus petit,
+dessiné en pointillé, jamais agrandi, et annoncé sous les champs : il s'agit
+presque toujours d'une marge qu'on n'avait pas remarquée.
 
-L'aperçu se regarde de près : la **molette** grossit sous le curseur, on
-**tire** la planche pour aller voir ailleurs, le **double-clic** la rend
-entière. Une planche de cinquante-deux cartes tient dans la boîte, et un trait
-de découpe qui passe à deux pixels d'une carte ne se voit pas autrement.
+L'aperçu permet de regarder le détail : la **molette** agrandit sous le
+curseur, on **déplace** la planche en la tirant, et le **double-clic** la
+réaffiche en entier. Une planche de cinquante-deux cartes tient dans la boîte,
+où un trait de découpe qui passe à deux pixels d'une carte est invisible.
 
-Les quatre **marges** se prennent sur la planche *avant* le quadrillage, et
-c'est tout l'intérêt : ce qui n'est pas une carte — un cadre, un filet, la
-rangée coupée en deux au bas d'un quart de planche — sort du compte au lieu de
-décaler toutes les cartes de sa largeur. Une bordure laissée dans le
-quadrillage ne se rattrape pas après coup ; le rognage, lui, travaille sur
-chaque morceau et n'y peut rien.
+Les quatre **marges** sont retirées de la planche *avant* le quadrillage, et
+c'est tout leur intérêt : ce qui n'est pas une carte — un cadre, un filet, la
+rangée coupée en deux en bas d'un quart de planche — est exclu du calcul, au
+lieu de décaler toutes les cartes de sa largeur. Une bordure laissée dans le
+quadrillage ne se corrige pas après coup ; le rognage, qui s'applique à chaque
+morceau, n'y change rien.
 
-Une marge peut être **négative** : le quadrillage déborde alors la planche de
-ce côté-là. Les planches ne sont pas toutes d'aplomb — il manque trois pixels à
-gauche, la première rangée commence avant le bord — et une marge négative remet
-le quadrillage en place au lieu de décaler toutes les cartes. Ce qui dépasse la
-planche sort **transparent** : le morceau du bord garde sa taille, et seules la
-première rangée ou la dernière en pâtissent. Ce que les marges mettent dehors
-est voilé sur l'image, de sorte qu'on voit ce qui part.
+Une marge peut être **négative** : le quadrillage dépasse alors la planche de
+ce côté. Les planches ne sont pas toutes bien alignées — il manque trois pixels
+à gauche, la première rangée commence avant le bord — et une marge négative
+réaligne le quadrillage au lieu de décaler toutes les cartes. La partie qui
+dépasse de la planche sort **transparente** : le morceau du bord garde sa
+taille, et seules la première ou la dernière rangée sont incomplètes. Ce que
+les marges excluent est grisé sur l'aperçu, afin de voir ce qui sera retiré.
 
-Ainsi la planche à double résolution que les bibliothèques coupent en quatre :
-le quart de 1019 × 1024 porte six colonnes et cinq rangées entières de cartes
-de 146 × 196, et le reste — 143 pixels à droite, 44 en bas — est la moitié des
-cartes voisines. En marge, ou laissé à ses morceaux en pointillé qu'on ne
-rangera pas : les trente cartes entières sortent d'aplomb.
+Exemple : les planches en double résolution que les bibliothèques découpent en
+quatre. Le quart de 1019 × 1024 contient six colonnes et cinq rangées entières
+de cartes de 146 × 196, et le reste — 143 pixels à droite, 44 en bas — est la
+moitié des cartes voisines. Mis en marge, ou laissé aux morceaux en pointillé
+qu'on ne placera pas, les trente cartes entières sortent correctement alignées.
 
-La planche s'en va, ses morceaux prennent sa place sous la main dans l'ordre de
-lecture, et il n'y a plus qu'à les ranger.
+La planche est retirée de la liste, ses morceaux prennent sa place dans l'ordre
+de lecture, et il n'y a plus qu'à les placer.
 
 ## Recoller les quarts d'une planche
 
-Les bibliothèques gardent leurs planches à **double résolution** coupées en
-quatre quarts, parce qu'un bitmap de deux mille pixels de côté ne passait pas
-partout. Un quart ne se découpe pas, ou mal : ses bords traversent des cartes.
+Les bibliothèques stockent leurs planches en **double résolution** découpées en
+quatre quarts, parce qu'un bitmap de deux mille pixels de côté n'était pas
+partout accepté. Un quart se découpe mal : ses bords traversent des cartes.
 
-Le **clic droit** sur une image propose de la coller à celle qui est désignée —
-à gauche, à droite, au-dessus, au-dessous. Les deux sont alignées sur le bord
-qu'elles partagent, et ce qui manque à la plus courte reste transparent : rien
-n'est étiré. L'image recollée prend la place de celle qui était désignée et
-reste désignée, de sorte que le collage se reprend de proche en proche.
+Le **clic droit** sur une image propose de la coller à l'image
+sélectionnée — à gauche, à droite, au-dessus ou au-dessous. Les deux images
+sont alignées sur le bord qu'elles partagent, et ce qui manque à la plus courte
+reste transparent : rien n'est étiré. L'image obtenue remplace l'image
+sélectionnée et reste sélectionnée, de sorte que les collages s'enchaînent.
 
-Les quatre quarts du `CardGames.dll` de Windows 7 s'y remontent en trois
-gestes :
+Les quatre quarts du `CardGames.dll` de Windows 7 se recomposent en trois
+collages :
 
 | | |
 |---|---|
-| `…X21` + `…X22` **à droite** | 1024 × 1024 et 1019 × 1024 font le haut, 2043 × 1024 |
+| `…X21` + `…X22` **à droite** | 1024 × 1024 et 1019 × 1024 donnent le haut, 2043 × 1024 |
 | `…X23` + `…X24` **à droite** | le bas, 2043 × 935 |
 | le bas **au-dessous** du haut | la planche entière, 2043 × 1959 |
 
-et elle se découpe en 14 × 10 comme n'importe quelle autre, en cartes de
+Elle se découpe ensuite en 14 × 10 comme n'importe quelle autre, en cartes de
 146 × 196 — quatre fois la surface des 73 × 98 de la petite planche. Les quarts
-s'en vont à mesure qu'ils sont recollés.
+sont retirés de la liste à mesure qu'ils sont recollés.
 
-Deux mille quarante-trois pixels ne font pas quatorze colonnes rondes : les
-morceaux sortent à un pixel près les uns des autres, et c'est sans
-conséquence — la taille du jeu est celle que porte la plupart d'entre eux, et
-les jeux dessinent les cartes à la taille qu'ils veulent.
+Deux mille quarante-trois pixels ne font pas quatorze colonnes entières : les
+morceaux sortent à un pixel près les uns des autres, ce qui est sans
+conséquence, puisque la taille de référence du jeu est celle que partage la
+majorité des morceaux et que les programmes de jeu affichent les cartes à la
+taille qu'ils veulent.
 
-## Partir du jeu dessiné
+## Partir d'un jeu existant
 
-Le plus commode pour commencer est de partir de celui du rami :
+Le plus simple, pour commencer, est de partir d'un jeu déjà complet : un
+programme de jeu qui sait exporter son jeu dessiné en `.cartes`, ou n'importe
+quel `.cartes` installé.
 
 ```sh
-ramisol --exporter-cartes mon-jeu.cartes
 pdcartes-barquette mon-jeu.cartes
 ```
 
-On remplace les quatre as, on enregistre, on installe.
+On remplace les cartes qu'on veut, on enregistre, on installe.
 
 ## Construire
 
@@ -231,29 +238,29 @@ cmake --build build
 ./build/pdcartes-barquette
 ```
 
-Un paquet Debian : `cmake --build build --target deb`. Il porte l'heure du
-build derrière un `~` — `pdcartes-barquette_1.0.0~261024225112_amd64.deb` — ce qui
-le classe *avant* la version vers laquelle il va, et le laisse donc remplacer
-par elle.
+Pour un paquet Debian : `cmake --build build --target deb`. Son nom porte
+l'heure du build derrière un `~` —
+`pdcartes-barquette_1.0.0~261024225112_amd64.deb` — ce qui le classe *avant* la
+version qu'il prépare, et permet donc à celle-ci de le remplacer.
 
-Le paquet d'une version, nommé par son numéro seul et sans empreinte dedans :
-`cmake --build build --target release`.
+Pour le paquet d'une version, nommé par son numéro seul et sans empreinte à
+l'intérieur : `cmake --build build --target release`.
 
 Le greffon Qt qui lit les SVG (`qt6-svg-plugins`) n'est pas une dépendance
-dure — un jeu en PNG marche sans — mais sans lui un jeu vectoriel est une table
-de cartes blanches.
+obligatoire — un jeu en PNG fonctionne sans — mais sans lui un jeu vectoriel
+s'affiche en cartes blanches.
 
 ## Le code
 
 | | |
 |---|---|
-| `lib/CardSet.cpp` | le format : écrire, relire, et rendre une face à la taille voulue |
+| `lib/CardSet.cpp` | le format : écrire, relire, et rendre une face à la taille demandée |
 | `lib/CardDeck.cpp` | les jeux installés, celui qui est choisi, le dos choisi |
 | `lib/DllResources.cpp` | la lecture des bibliothèques Windows, NE et PE |
 | `lib/Palette.cpp` | toutes les couleurs, dérivées d'une seule teinte |
-| `lib/DialogChrome.cpp` | l'habillage que les boîtes de dialogue partagent |
-| `src/FaceGrid.cpp` | les places d'un jeu : quatre rangées de treize, le joker, les dos |
-| `src/SourceTray.cpp` | les images qu'on a sous la main |
+| `lib/DialogChrome.cpp` | l'habillage commun aux boîtes de dialogue |
+| `src/FaceGrid.cpp` | les cases d'un jeu : quatre rangées de treize, le joker, les dos |
+| `src/SourceTray.cpp` | la liste des images ouvertes |
 | `src/SplitDialog.cpp` | le découpage d'une planche en morceaux |
-| `src/AtelierWindow.cpp` | la fenêtre, et le geste entre les deux surfaces |
-| `src/HelpDialog.cpp` | comment on fabrique un jeu, en entier, dans la fenêtre |
+| `src/AtelierWindow.cpp` | la fenêtre, et les échanges entre les deux zones |
+| `src/HelpDialog.cpp` | le mode d'emploi complet, affiché dans la fenêtre |

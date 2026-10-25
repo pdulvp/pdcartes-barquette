@@ -65,9 +65,9 @@ void inkLabel(QLabel *label, const QColor &colour) {
     label->setStyleSheet(rule);
 }
 
-// Efface la couleur de fond autour des coins arrondis, par remplissage depuis
-// les quatre coins. Un remplissage et non « tous les pixels de cette
-// couleur » : la couleur du coin se retrouve au milieu de la carte.
+// Efface la couleur de fond autour des coins arrondis, par propagation depuis
+// les quatre coins. Une propagation, et non « tous les pixels de cette
+// couleur » : la couleur du coin se retrouve aussi au milieu de la carte.
 QByteArray clearCorners(const QByteArray &bytes, const QByteArray &kind) {
     QBuffer buffer;
     buffer.setData(bytes);
@@ -277,10 +277,10 @@ QWidget *AtelierWindow::buildRight() {
     auto *folder = panelButton(panel, tr("Dossier…"), tr("Prendre toutes les images d'un "
                                                         "dossier"));
     auto *dll = panelButton(panel, tr("Bibliothèque…"),
-                            tr("Sortir les images d'une DLL pour Windows"));
+                            tr("Extraire les images d'une DLL Windows"));
     auto *other = panelButton(panel, tr("Autre set…"),
-                              tr("Prendre les cartes d'un jeu déjà fait sous la main, sans "
-                                 "quitter celui-ci"));
+                              tr("Ouvrir les cartes d'un jeu existant, sans quitter "
+                                 "celui-ci"));
     opens->addWidget(images);
     opens->addWidget(folder);
     opens->addWidget(dll);
@@ -297,8 +297,8 @@ QWidget *AtelierWindow::buildRight() {
     rows->addWidget(m_clearCorners);
 
     auto *guess = panelButton(panel, tr("Deviner la correspondance"),
-                              tr("Ranger les cartes et les dos d'un coup : à leur place "
-                                 "d'origine pour les images d'un Autre set par exemple"));
+                              tr("Placer les cartes et les dos d'un coup : dans leur case "
+                                 "d'origine pour les images d'un Autre set, par exemple"));
     rows->addWidget(guess);
 
     m_tray = new SourceTray(panel);
@@ -312,12 +312,13 @@ QWidget *AtelierWindow::buildRight() {
     auto *places = new QHBoxLayout;
     places->setSpacing(6);
     auto *place = panelButton(panel, tr("Ranger ici"),
-                              tr("Mettre l'image choisie dans la place choisie (ou double-clic)"));
+                              tr("Placer l'image choisie dans la case choisie (ou "
+                                 "double-clic)"));
     auto *asBack = panelButton(panel, tr("Ajouter comme dos"),
                                tr("Faire de l'image choisie un dos de plus"));
     auto *split = panelButton(panel, tr("Découper…"),
-                              tr("Débiter l'image choisie en autant de morceaux qu'elle "
-                                 "porte de cartes"));
+                              tr("Découper l'image choisie en autant de morceaux qu'elle "
+                                 "contient de cartes"));
     auto *empty = panelButton(panel, tr("Vider"), tr("Oublier les images ouvertes"));
     places->addWidget(place);
     places->addWidget(asBack);
@@ -428,7 +429,7 @@ void AtelierWindow::installFile() {
 
     QString stem = m_set.name.trimmed();
     if (stem.isEmpty()) stem = tr("jeu");
-    // Le nom du jeu réduit à un nom de fichier.
+    // Le nom du jeu transformé en nom de fichier.
     stem.replace(QRegularExpression(QStringLiteral("[^\\w\\-]+")), QStringLiteral("-"));
     if (stem.isEmpty()) stem = QStringLiteral("jeu");
 
@@ -459,7 +460,7 @@ void AtelierWindow::installFile() {
 }
 
 // ---------------------------------------------------------------------------
-// Les images qu'on ouvre.
+// L'ouverture des images.
 
 void AtelierWindow::importImages() {
     const QStringList paths = QFileDialog::getOpenFileNames(
@@ -546,10 +547,10 @@ void AtelierWindow::importDll() {
     updateChrome();
 }
 
-// Reprendre les cartes d'un jeu déjà fait. Celui qui est en cours ne bouge
-// pas : les faces et les dos de l'autre arrivent sous la main, avec la place
-// qu'ils tenaient là-bas, et on y puise ce qu'on veut — une seule carte, ou le
-// jeu entier d'un coup avec « Deviner la correspondance ».
+// Reprendre les cartes d'un jeu existant. Le jeu en cours n'est pas modifié :
+// les faces et les dos de l'autre jeu sont ajoutés à la liste des images, avec
+// la case qu'ils occupaient, et on y prend ce qu'on veut — une seule carte, ou
+// le jeu entier d'un coup avec « Deviner la correspondance ».
 void AtelierWindow::importSet() {
     const QString path = QFileDialog::getOpenFileName(
         this, tr("Prendre les cartes d'un Autre set"), CardSet::installFolder(),
@@ -591,21 +592,22 @@ void AtelierWindow::importSet() {
         return;
     }
 
-    // Les images s'ajoutent à celles qui sont déjà sous la main : on copie
+    // Les images s'ajoutent à celles qui sont déjà ouvertes : on reprend
     // souvent deux figures d'un jeu et le reste d'un autre.
     const int before = m_tray->count();
     m_tray->addItems(images);
     const int landed = m_tray->count() - before;
 
     const QString from = read.name.trimmed().isEmpty() ? QFileInfo(path).fileName() : read.name;
-    QString told = tr("%1 cartes et %2 dos de « %3 » sont sous la main. Ils savent la place "
-                      "qu'ils tenaient : « Deviner la correspondance » les y remet tous d'un "
-                      "coup.")
+    QString told = tr("%1 cartes et %2 dos de « %3 » sont ouverts. Ils connaissent la case "
+                      "qu'ils occupaient : « Deviner la correspondance » les y replace tous "
+                      "d'un coup.")
                        .arg(faces)
                        .arg(images.size() - faces)
                        .arg(from);
-    // Un jeu vectoriel ouvert sans le greffon SVG ne montre rien : mieux vaut
-    // le dire que de laisser compter des images qui ne sont pas arrivées.
+    // Un jeu vectoriel ouvert sans le greffon SVG n'affiche rien : il vaut
+    // mieux le signaler que de laisser compter des images qui ne seront pas
+    // affichées.
     if (landed < images.size()) {
         told += QLatin1Char(' ')
                 + tr("%1 images n'ont pas pu être affichées.").arg(images.size() - landed);
@@ -614,9 +616,9 @@ void AtelierWindow::importSet() {
     updateChrome();
 }
 
-// Les jeux de cartes récents ne rangent plus une image par carte : ils en
-// mettent cinquante-deux sur une seule planche. On la débite, et ses morceaux
-// prennent sa place sous la main.
+// Les jeux de cartes récents ne contiennent plus une image par carte : ils en
+// placent cinquante-deux sur une seule planche. Celle-ci est découpée, et ses
+// morceaux prennent sa place dans la liste.
 void AtelierWindow::splitSheet() {
     const int chosen = m_tray->chosen();
     const SourceTray::Item *item = m_tray->at(chosen);
@@ -637,9 +639,10 @@ void AtelierWindow::splitSheet() {
     updateChrome();
 }
 
-// Le menu du clic droit sur une image : ce qu'on peut faire de celle-ci avec
-// celle qui est choisie. Il est monté ici plutôt que dans la corbeille, qui ne
-// sait pas ce qui est choisi ailleurs ni ce qu'il advient de ses images.
+// Le menu du clic droit sur une image : ce qu'on peut faire de cette image
+// avec celle qui est sélectionnée. Il est construit ici plutôt que dans la
+// liste, qui ne connaît ni ce qui est sélectionné ailleurs ni ce que devient
+// chacune de ses images.
 void AtelierWindow::openTrayMenu(int index, const QPoint &where) {
     const SourceTray::Item *under = m_tray->at(index);
     if (!under) return;
@@ -647,8 +650,8 @@ void AtelierWindow::openTrayMenu(int index, const QPoint &where) {
     const SourceTray::Item *anchor = chosen == index ? nullptr : m_tray->at(chosen);
 
     QMenu menu(this);
-    // Le nom des deux images, raccourci : « HIGHLIGHTSHEET1X22 » tient dans un
-    // menu, un chemin de ressource entier non.
+    // Le nom des deux images, raccourci : « HIGHLIGHTSHEET1X22 » tient dans
+    // un menu, un chemin de ressource complet non.
     const QString here = imageStem(under->image.label);
     if (!anchor) {
         QAction *why = menu.addAction(
@@ -661,8 +664,9 @@ void AtelierWindow::openTrayMenu(int index, const QPoint &where) {
         QAction *title = menu.addAction(tr("Coller « %1 »…").arg(here));
         title->setEnabled(false);
         menu.addSeparator();
-        // Le côté est dit du point de vue de l'image choisie, qui est l'ancre :
-        // c'est elle qu'on a sous les yeux, bordée de la couleur de l'atelier.
+        // Le côté est exprimé du point de vue de l'image sélectionnée, qui
+        // sert d'ancre : c'est elle qu'on a sous les yeux, bordée de la
+        // couleur du thème.
         const struct {
             JoinSide side;
             QString text;
@@ -681,9 +685,9 @@ void AtelierWindow::openTrayMenu(int index, const QPoint &where) {
     menu.exec(where);
 }
 
-// Deux images recollées en une. Les quatre quarts d'une planche à double
-// résolution se remontent ainsi, et la planche entière se découpe d'aplomb là
-// où aucun de ses quarts ne le faisait.
+// Deux images recollées en une. C'est ainsi que se reconstituent les quatre
+// quarts d'une planche en double résolution, la planche entière se découpant
+// correctement là où aucun de ses quarts ne s'y prêtait.
 void AtelierWindow::joinWith(int other, JoinSide side) {
     const int chosen = m_tray->chosen();
     const SourceTray::Item *anchor = m_tray->at(chosen);
@@ -697,9 +701,9 @@ void AtelierWindow::joinWith(int other, JoinSide side) {
         return;
     }
 
-    // L'image recollée prend la place de l'ancre, et la seconde s'en va : les
-    // morceaux d'une planche remontée n'ont plus rien à faire sous la main, et
-    // le collage se reprend de proche en proche jusqu'à la planche entière.
+    // L'image recollée prend la place de l'ancre, et la seconde est retirée :
+    // les quarts d'une planche reconstituée n'ont plus à figurer dans la
+    // liste, et les collages s'enchaînent jusqu'à la planche entière.
     if (!m_tray->replaceItem(chosen, {joined})) {
         QMessageBox::warning(this, tr("Atelier"), tr("Le collage n'a pas pu être relu."));
         return;
@@ -717,8 +721,9 @@ void AtelierWindow::guessMapping() {
 
     int faces = 0;
     int backs = 0;
-    // Ce qui a été rangé d'après l'ordre d'une DLL, et qui est donc à
-    // vérifier : une image qui vient d'un Autre set, elle, est sûre d'elle.
+    // Ce qui a été placé d'après l'ordre supposé d'une DLL doit être
+    // vérifié ; une image reprise d'un autre jeu, elle, connaît sa case avec
+    // certitude.
     int supposed = 0;
     m_tray->forgetUsage();
     for (int i = 0; i < m_tray->count(); ++i) {
@@ -729,8 +734,8 @@ void AtelierWindow::guessMapping() {
         art.kind = item->image.kind;
         art.bytes = item->image.bytes;
 
-        // Une image reprise d'un jeu déjà fait sait la place qu'elle tenait :
-        // il n'y a rien à deviner, elle y retourne.
+        // Une image reprise d'un jeu existant connaît la case qu'elle
+        // occupait : il n'y a rien à deviner, elle y retourne.
         const int place = item->image.place;
         if (place != DllImage::kNowhere) {
             if (FaceGrid::isBack(place)) {
@@ -774,7 +779,7 @@ void AtelierWindow::guessMapping() {
 
     m_grid->reread();
     noteChange();
-    QString told = tr("%1 cartes et %2 dos rangés.").arg(faces).arg(backs);
+    QString told = tr("%1 cartes et %2 dos placés.").arg(faces).arg(backs);
     if (supposed > 0) {
         told += QLatin1Char(' ')
                 + tr("Vérifiez la grille : l'ordre des couleurs varie selon les versions.");
@@ -783,7 +788,7 @@ void AtelierWindow::guessMapping() {
 }
 
 // ---------------------------------------------------------------------------
-// Ranger.
+// Le placement des images.
 
 void AtelierWindow::placeInto(int target, int trayIndex) {
     const SourceTray::Item *item = m_tray->at(trayIndex);
@@ -802,7 +807,7 @@ void AtelierWindow::placeInto(int target, int trayIndex) {
     m_tray->markUsed(trayIndex, true);
     m_grid->reread();
 
-    // On avance à la place vide suivante.
+    // On avance à la case vide suivante.
     if (!FaceGrid::isBack(target)) m_grid->setTarget(m_grid->nextEmptyFace(target));
     noteChange();
 }
@@ -867,19 +872,19 @@ void AtelierWindow::updateChrome() {
     const int target = m_grid->target();
     QString says;
     if (FaceGrid::isBack(target)) {
-        says = tr("Place choisie : le dos %1. ").arg(FaceGrid::backOfTarget(target) + 1);
+        says = tr("Case choisie : le dos %1. ").arg(FaceGrid::backOfTarget(target) + 1);
     } else {
-        says = tr("Place choisie : %1. ").arg(CardSet::slotName(target));
+        says = tr("Case choisie : %1. ").arg(CardSet::slotName(target));
     }
     if (m_tray->count() == 0) {
         says += tr("Ouvrez des images à droite pour commencer.");
     } else if (m_tray->chosen() < 0) {
         says += tr("Choisissez une image à droite, puis « Ranger ici ».");
     } else if (m_tray->count() > 1) {
-        says += tr("Clic droit sur une place pour la vider, sur une autre image pour la coller "
-                   "à celle qui est choisie.");
+        says += tr("Clic droit sur une case pour la vider, sur une autre image pour la "
+                   "coller à celle qui est choisie.");
     } else {
-        says += tr("Clic droit sur une place pour la vider.");
+        says += tr("Clic droit sur une case pour la vider.");
     }
     m_hint->setText(says);
 
@@ -921,9 +926,10 @@ void AtelierWindow::applyColours() {
                       "QScrollBar::handle:vertical:hover { background: %4; }"
                       "QScrollBar::add-line, QScrollBar::sub-line { height: 0; width: 0; }"
                       "QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }"
-                      // Le menu du clic droit, habillé ici comme le reste : un
-                      // menu laissé au bureau arrive dans les couleurs du
-                      // bureau, au milieu d'une fenêtre qui porte les siennes.
+                      // Le menu du clic droit est habillé ici comme le
+                      // reste : un menu laissé au style du bureau arrive dans
+                      // les couleurs du bureau, au milieu d'une fenêtre qui
+                      // porte les siennes.
                       "QMenu { background: %5; color: %2; border: 1px solid %3; padding: 5px; }"
                       "QMenu::item { padding: 6px 16px; border-radius: 5px; }"
                       "QMenu::item:selected { background: %4; color: %6; }"

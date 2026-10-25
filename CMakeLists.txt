@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
-# La version : trois nombres dans un fichier, avancés par les tâches de bump.
+# La version : trois nombres dans un fichier, incrémentés par les cibles de
+# bump.
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" ATELIER_VERSION)
 string(STRIP "${ATELIER_VERSION}" ATELIER_VERSION)
 
@@ -17,12 +18,14 @@ include(GNUInstallDirs)
 
 find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets)
 
-# Le format, la liste des jeux installés et le style partagé.
+# La bibliothèque partagée : le format, la liste des jeux installés et le
+# style commun.
 add_subdirectory(lib)
 
-# Quel build c'est. Écrit à chaque build plutôt qu'à chaque configure, pour que
-# la version sur la ligne de commande et sur le paquet soit le build qui est
-# devant vous ; voir cmake/GenerateVersion.cmake.
+# L'identification du build. Elle est écrite à chaque build, et non à chaque
+# configuration, afin que la version affichée par le programme et celle du
+# paquet soient bien celles du binaire courant ; voir
+# cmake/GenerateVersion.cmake.
 set(BUILD_VERSION_CPP ${CMAKE_CURRENT_BINARY_DIR}/BuildVersion.cpp)
 set(BUILD_VERSION_TXT ${CMAKE_CURRENT_BINARY_DIR}/BuildVersion.txt)
 set(GENERATE_VERSION ${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateVersion.cmake)
@@ -34,7 +37,7 @@ add_custom_target(build-version ALL
     BYPRODUCTS ${BUILD_VERSION_CPP} ${BUILD_VERSION_TXT}
     COMMAND ${CMAKE_COMMAND} -DVERSION=${ATELIER_VERSION}
         -DOUT_CPP=${BUILD_VERSION_CPP} -DOUT_TXT=${BUILD_VERSION_TXT} -P ${GENERATE_VERSION}
-    COMMENT "Stamping the build with the time it was made")
+    COMMENT "Horodatage du build")
 set_source_files_properties(${BUILD_VERSION_CPP} PROPERTIES GENERATED TRUE)
 
 add_executable(pdcartes-barquette
@@ -67,10 +70,10 @@ set(CPACK_PACKAGE_NAME "pdcartes-barquette")
 set(CPACK_PACKAGE_VENDOR "pdcartes-barquette")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "L'atelier des jeux de cartes")
 set(CPACK_PACKAGE_DESCRIPTION
-    "De quoi fabriquer un jeu de cartes pour le rami et la belote de la maison :
-on y dépose des images, ou on y ouvre un DLL pour Windows, on range les
-faces et les dos, et il en sort un fichier unique à déposer dans le dossier de
-configuration.")
+    "Un programme pour fabriquer des jeux de cartes : on lui donne des images, ou
+une DLL Windows dont il extrait les images, on place les faces et les dos dans
+une grille, et il produit un seul fichier à copier dans le dossier des cartes,
+où les programmes de jeu qui lisent ce format le trouvent.")
 set(CPACK_PACKAGE_CONTACT "pdulvp <pdulvp@laposte.net>")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_CONTACT}")
 set(CPACK_DEBIAN_PACKAGE_SECTION "games")
@@ -85,42 +88,43 @@ set(CPACK_PROJECT_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPackOptions.cm
 set(CPACK_PACKAGE_VERSION "${ATELIER_VERSION}")
 include(CPack)
 
-# Le paquet d'un build de travail : `cmake --build build --target deb`. Il
-# porte l'empreinte de l'heure derrière un `~` ; voir cmake/CPackOptions.cmake.
+# Le paquet d'un build de travail : `cmake --build build --target deb`. Son nom
+# porte l'horodatage derrière un `~` ; voir cmake/CPackOptions.cmake.
 add_custom_target(deb
     COMMAND ${CMAKE_COMMAND} -E env CARTOTHEQUE_KEEP_VERSION=1
         ${CMAKE_CPACK_COMMAND} -G DEB --config ${CMAKE_CURRENT_BINARY_DIR}/CPackConfig.cmake
     DEPENDS pdcartes-barquette
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    COMMENT "Building the Debian package")
+    COMMENT "Construction du paquet Debian")
 
 # ---------------------------------------------------------------------------
 # Le paquet d'une version :
 #
 #     cmake --build build --target release
 #
-# Le deb nommé par la version seule -- pdcartes-barquette_1.0.0_amd64.deb -- et
-# le binaire dedans qui ne dit qu'elle. Un build ordinaire garde son
-# empreinte, lui, derrière un `~` qui le classe avant la version vers
-# laquelle il va ; voir cmake/CPackOptions.cmake.
+# Le paquet est nommé par la version seule -- pdcartes-barquette_1.0.0_amd64.deb
+# -- et le binaire qu'il contient n'annonce que cette version. Un build
+# ordinaire conserve au contraire son horodatage derrière un `~`, ce qui le
+# classe avant la version qu'il prépare ; voir cmake/CPackOptions.cmake.
 #
-# L'absence d'empreinte est à la cible et non à l'arbre : pas d'option de
-# configuration qu'on laisse allumée sans le voir et qui donnerait un jour
-# deux 1.0.0 que dpkg ne sait pas départager.
+# L'absence d'horodatage est attachée à la cible et non à la configuration : il
+# n'y a donc pas d'option qu'on pourrait laisser active sans le remarquer, et
+# qui produirait un jour deux paquets 1.0.0 que dpkg ne saurait pas
+# départager.
 add_custom_target(release
-    # 1. La version, sans empreinte. CARTOTHEQUE_KEEP_VERSION tient ensuite
-    #    la cible build-version tranquille : sans quoi le build qui suit la
-    #    réécrirait, horodatée.
+    # 1. La version, sans horodatage. CARTOTHEQUE_KEEP_VERSION empêche
+    #    ensuite la cible build-version d'intervenir : sans cela, le build
+    #    qui suit réécrirait la version avec son horodatage.
     COMMAND ${CMAKE_COMMAND} -DVERSION=${ATELIER_VERSION} -DRELEASE=ON
         -DOUT_CPP=${BUILD_VERSION_CPP} -DOUT_TXT=${BUILD_VERSION_TXT}
         -P ${GENERATE_VERSION}
 
-    # 2. Le binaire avant le paquet : ce qui casse s'arrête ici, et il ne
-    #    reste pas la moitié d'une version sur le disque.
+    # 2. Le binaire avant le paquet : une erreur de compilation arrête tout
+    #    ici, et ne laisse pas une version incomplète sur le disque.
     COMMAND ${CMAKE_COMMAND} -E env CARTOTHEQUE_KEEP_VERSION=1
         ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR} --target pdcartes-barquette
 
-    # 3. Le paquet, par la cible qui le fait déjà.
+    # 3. Le paquet, par la cible qui sait déjà le construire.
     COMMAND ${CMAKE_COMMAND} -E env CARTOTHEQUE_KEEP_VERSION=1
         ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR} --target deb
 

@@ -18,13 +18,13 @@
 // et le reste, une fois décompressé, est un QDataStream en Qt_6_0 :
 //
 //     QString nom, auteur, note
-//     qint32  largeur, hauteur   la taille naturelle d'une face
+//     qint32  largeur, hauteur   la taille de référence d'une face
 //     qint32  nombre de faces    puis, pour chacune :
 //         qint8 rang (0 = joker, 1 = as … 13 = roi), qint8 couleur,
-//         QByteArray genre (« png », « svg », « bmp », « jpg »),
+//         QByteArray type d'image (« png », « svg », « bmp », « jpg »),
 //         QByteArray octets
 //     qint32  nombre de dos      puis, pour chacun :
-//         QString nom, QByteArray genre, QByteArray octets
+//         QString nom, QByteArray type d'image, QByteArray octets
 //
 // Les images sont stockées telles quelles : un PNG reste un PNG, un SVG reste
 // un SVG.
@@ -36,19 +36,19 @@ struct Artwork {
     bool isEmpty() const { return bytes.isEmpty(); }
     bool isVector() const { return kind == "svg" || kind == "svgz"; }
 
-    // Le genre d'image, reconnu aux premiers octets plutôt qu'à l'extension.
+    // Le type d'image, reconnu aux premiers octets plutôt qu'à l'extension.
     static QByteArray sniff(const QByteArray &bytes);
     static Artwork fromFile(const QString &path, QString *why = nullptr);
 };
 
 class CardSet {
 public:
-    // 53 places : le joker, puis les 52 cartes.
+    // 53 emplacements : le joker, puis les 52 cartes.
     static constexpr int kSlots = 53;
     static constexpr int kJokerSlot = 0;
 
     // `rank` va de 1 (l'as) à 13 (le roi), `suit` de 0 à 3 dans l'ordre
-    // pique, cœur, carreau, trèfle. Chaque programme traduit sa propre
+    // pique, cœur, carreau, trèfle. Chaque programme convertit sa propre
     // numérotation vers celle-ci.
     static int slotFor(int rank, int suit);
     static int rankOfSlot(int slot);
@@ -63,19 +63,20 @@ public:
 
     bool isEmpty() const;
     int filledFaces() const;
-    bool complete() const;                   // les 53 places sont remplies
-    // Largeur / hauteur d'une face, pour que la table adopte la forme des
-    // cartes qu'on lui donne. Nul quand le jeu est vide.
+    bool complete() const;                   // les 53 emplacements remplis
+    // Largeur / hauteur d'une face, pour que l'affichage adopte la proportion
+    // des cartes qu'on lui donne. Nul quand le jeu est vide.
     qreal aspect() const;
 
-    // La taille que portent la plupart des faces : celle qu'une carte de ce
-    // jeu-là mesure vraiment. Nulle quand il n'y a rien à mesurer.
+    // La taille que partage la plupart des faces, c'est-à-dire la taille
+    // réelle d'une carte de ce jeu. Nulle quand il n'y a rien à mesurer.
     QSize measuredArtSize() const;
 
-    // Remet la taille mesurée dans `artSize`. Appelée dès que les faces
-    // changent, et une fois à l'ouverture : c'est de ce champ que la table
-    // tient la forme de ses cartes, et un jeu dont le champ dit 1022 × 980
-    // quand ses faces font 71 × 96 fait une table de cartes carrées.
+    // Recopie la taille mesurée dans `artSize`. Appelée dès que les faces
+    // changent, et une fois à l'ouverture : c'est de ce champ que les
+    // programmes de jeu tirent la proportion des cartes, et un jeu dont le
+    // champ annonce 1022 × 980 alors que ses faces font 71 × 96 produit un
+    // affichage de cartes carrées.
     void refreshArtSize();
 
     void setFace(int slot, const Artwork &art);
@@ -95,8 +96,8 @@ public:
     bool save(const QString &path, QString *why) const;
     bool load(const QString &path, QString *why);
 
-    // Une face rendue à la taille voulue. Le résultat est mis en cache : une
-    // carte est redemandée à chaque repaint.
+    // Une face rendue à la taille demandée. Le résultat est mis en cache, car
+    // une carte est redemandée à chaque réaffichage.
     QPixmap faceImage(int slot, const QSize &size) const;
     QPixmap backImage(int at, const QSize &size) const;
     void forgetDrawings() const;
@@ -104,7 +105,7 @@ public:
     QString path() const { return m_path; }
 
     static QString extension() { return QStringLiteral("cartes"); }
-    // Le dossier où les jeux installés sont attendus.
+    // Le dossier où les jeux installés sont recherchés.
     static QString installFolder();
 
 private:

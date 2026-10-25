@@ -9,8 +9,9 @@
 
 namespace {
 
-// Lecture bornée : toute lecture hors du tampon met `ok()` à faux au lieu de
-// déborder. Un fichier abîmé fait échouer la lecture, pas le programme.
+// Lecture bornée : toute lecture au-delà du tampon met `ok()` à faux au lieu
+// de déborder. Un fichier endommagé fait donc échouer la lecture, et non le
+// programme.
 class Peek {
 public:
     explicit Peek(const QByteArray &bytes) : m_bytes(bytes) {}
@@ -50,7 +51,7 @@ private:
     bool m_ok = true;
 };
 
-// Les types de ressources de Windows dont on veut quelque chose.
+// Les types de ressources Windows qui nous intéressent.
 constexpr quint16 kRtBitmap = 2;
 
 QString guessKind(const QByteArray &bytes) {
@@ -58,8 +59,8 @@ QString guessKind(const QByteArray &bytes) {
     return QString::fromLatin1(kind);
 }
 
-// Un bitmap de ressource n'a pas les 14 octets d'en-tête de fichier : on les
-// remet pour obtenir un .bmp lisible.
+// Un bitmap stocké en ressource n'a pas les 14 octets d'en-tête de fichier :
+// ils sont rajoutés ici pour obtenir un .bmp lisible.
 QByteArray wrapDib(const QByteArray &dib) {
     if (dib.size() < 16) return {};
     Peek peek(dib);
@@ -250,7 +251,7 @@ void walkResources(Peek &peek, qint64 base, qint64 at, const QVector<Section> &s
             continue;
         }
 
-        // Une feuille : adresse et taille des octets.
+        // Une feuille de l'arbre : adresse et taille des octets.
         const qint64 leaf = base + dataField;
         const quint32 dataRva = peek.u32(leaf);
         const quint32 dataSize = peek.u32(leaf + 4);
@@ -295,7 +296,8 @@ bool readPe(Peek &peek, qint64 peAt, DllReading *reading, QString *why) {
         return false;
     }
 
-    // La deuxième entrée de la table des répertoires : les ressources.
+    // La deuxième entrée de la table des répertoires est celle des
+    // ressources.
     const quint32 resourceRva = peek.u32(directories + 2 * 8);
     if (!peek.ok() || resourceRva == 0) {
         if (why) {
@@ -384,8 +386,8 @@ DllReading readDllImages(const QString &path, QString *why) {
 
 int classicCardSlotForResource(int resourceId) {
     if (resourceId < 1 || resourceId > 52) return -1;
-    // Ordre des DLL : trèfle, carreau, cœur, pique. Ordre du format :
-    // pique, cœur, carreau, trèfle.
+    // Ordre des couleurs dans les DLL : trèfle, carreau, cœur, pique. Ordre
+    // des couleurs dans le format : pique, cœur, carreau, trèfle.
     static const int kSuitOrder[4] = {3, 2, 1, 0};
     const int block = (resourceId - 1) / 13;
     const int rank = (resourceId - 1) % 13 + 1;
@@ -399,8 +401,9 @@ bool classicResourceIsBack(int resourceId) {
 }
 
 // « SHEETS\HIGHLIGHTSHEET1X22.JPG » devient « HIGHLIGHTSHEET1X22 ». Les
-// antislash sont retournés d'abord : un nom de ressource vient de Windows, et
-// QFileInfo ne les tient pas pour des séparateurs ici.
+// antislash sont d'abord remplacés par des barres obliques : un nom de
+// ressource vient de Windows, et QFileInfo ne les traite pas comme des
+// séparateurs sur cette plateforme.
 QString imageStem(const QString &label) {
     QString name = label;
     name.replace(QLatin1Char('\\'), QLatin1Char('/'));

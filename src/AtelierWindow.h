@@ -15,15 +15,15 @@ class QScrollArea;
 class QToolButton;
 class SourceTray;
 
-// La fenêtre de l'atelier : les places du jeu à gauche, les images ouvertes à
-// droite. On désigne une place, on désigne une image, on range.
+// La fenêtre principale : les cases du jeu à gauche, les images ouvertes à
+// droite. On sélectionne une case, on sélectionne une image, et on place.
 class AtelierWindow : public QMainWindow {
     Q_OBJECT
 
 public:
     explicit AtelierWindow(QWidget *parent = nullptr);
 
-    // Ouvrir un jeu au démarrage, depuis la ligne de commande.
+    // Ouvre un jeu au démarrage, depuis la ligne de commande.
     bool openPath(const QString &path);
 
 protected:

@@ -70,8 +70,8 @@ bool SourceTray::replaceItem(int index, const QVector<DllImage> &images) {
 void SourceTray::removeItem(int index) {
     if (index < 0 || index >= m_items.size()) return;
     m_items.remove(index);
-    // Le choix suit l'image qu'il désignait : une image retirée avant elle la
-    // fait reculer d'un rang.
+    // La sélection suit l'image qu'elle désignait : le retrait d'une image
+    // placée avant elle la décale d'un rang.
     if (m_chosen == index) m_chosen = -1;
     else if (m_chosen > index) --m_chosen;
     m_hovered = -1;
@@ -153,7 +153,8 @@ void SourceTray::relayout() {
         x += cellWidth + kGap;
     }
 
-    // La hauteur demandée fait défiler la zone qui contient le widget.
+    // C'est la hauteur minimale demandée ici qui fait défiler la zone
+    // contenant ce widget.
     setMinimumHeight(int(y + tallest + kGap));
 }
 
@@ -168,9 +169,9 @@ void SourceTray::mousePressEvent(QMouseEvent *event) {
     const int at = cellAt(event->position());
     if (at < 0) return;
 
-    // Le clic droit ne déplace pas le choix : ce qui est proposé dans le menu
-    // tient à l'image choisie d'un côté et à celle qui est sous le pointeur de
-    // l'autre, et les confondre ne laisserait rien à fusionner.
+    // Le clic droit ne change pas la sélection : le menu proposé dépend à la
+    // fois de l'image sélectionnée et de celle qui est sous le pointeur, et les
+    // confondre ne laisserait rien à recoller.
     if (event->button() == Qt::RightButton) {
         Q_EMIT menuAsked(at, event->globalPosition().toPoint());
         return;
@@ -215,8 +216,8 @@ void SourceTray::paintEvent(QPaintEvent *) {
         painter.setFont(empty);
         painter.setPen(scheme.hint);
         painter.drawText(rect().adjusted(18, 0, -18, 0), Qt::AlignCenter | Qt::TextWordWrap,
-                         tr("Rien sous la main.\nOuvrez des images, un dossier, une DLL, "
-                            "ou prenez les cartes d'un Autre set."));
+                         tr("Aucune image ouverte.\nOuvrez des images, un dossier, une "
+                            "DLL, ou les cartes d'un Autre set."));
         return;
     }
 
@@ -237,7 +238,8 @@ void SourceTray::paintEvent(QPaintEvent *) {
                                        : (lit ? scheme.surface
                                               : blendColours(scheme.surface, scheme.desk, 0.4)));
 
-        // Un damier sous la vignette, pour voir la transparence.
+        // Un damier sous la vignette, pour rendre la transparence
+        // visible.
         QRectF where(0, 0, item.thumb.width(), item.thumb.height());
         where.moveCenter(QPointF(box.center().x(), box.top() + kPad + kThumbHeight / 2.0));
         painter.save();
@@ -260,7 +262,7 @@ void SourceTray::paintEvent(QPaintEvent *) {
                             chosen ? 2.2 : 1.0));
         painter.drawPath(shape);
 
-        // Les images déjà rangées portent une pastille.
+        // Les images déjà placées portent une pastille.
         if (item.used) {
             QRectF tick(0, 0, 15, 15);
             tick.moveTopRight(QPointF(box.right() - 3, box.top() + 3));

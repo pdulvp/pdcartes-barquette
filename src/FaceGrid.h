@@ -6,19 +6,19 @@
 
 class CardSet;
 
-// Les places d'un jeu : quatre rangées de treize, puis le joker et les dos.
+// Les cases d'un jeu : quatre rangées de treize, puis le joker et les dos.
 class FaceGrid : public QWidget {
     Q_OBJECT
 
 public:
     explicit FaceGrid(QWidget *parent = nullptr);
 
-    // Le jeu montré ; ni possédé ni copié.
+    // Le jeu affiché. Il n'est ni possédé ni copié.
     void watch(CardSet *set);
     void reread();
 
-    // La place désignée : positive ou nulle pour une face, négative pour un
-    // dos (voir backTarget).
+    // La case sélectionnée : positive ou nulle pour une face, négative pour
+    // un dos (voir backTarget).
     int target() const { return m_target; }
     void setTarget(int target);
 
@@ -26,7 +26,7 @@ public:
     static int backOfTarget(int target) { return target <= -1 ? -1 - target : -1; }
     static bool isBack(int target) { return target <= -1; }
 
-    // La place suivante sans image.
+    // La case vide suivante.
     int nextEmptyFace(int from) const;
 
 Q_SIGNALS:

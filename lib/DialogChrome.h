@@ -8,48 +8,53 @@ class QHBoxLayout;
 class QVBoxLayout;
 class QWidget;
 
-// The look the dialogs share: a strip of the table's colour down the
-// left-hand edge with the dialog's business written up it, the fields on the
-// table's pale surface, and the buttons in a band of their own along the
-// bottom.
+// L'habillage commun aux boîtes de dialogue : un bandeau de la couleur du
+// thème le long du bord gauche, portant le titre écrit verticalement, les
+// champs sur la surface claire du thème, et les boutons dans une bande qui
+// leur est propre en bas.
 //
-// A dialog is a window of its own, so it inherits none of the palette the
-// table is wearing: the colours come from currentPalette() instead, which is
-// what keeps a dialog opened over a burgundy table burgundy.
+// Une boîte de dialogue est une fenêtre à part, qui n'hérite donc pas de la
+// palette appliquée à la fenêtre principale : les couleurs sont prises dans
+// currentPalette(), ce qui garantit qu'une boîte ouverte par-dessus une
+// fenêtre d'un thème donné porte ce même thème.
 
-// Room the fields breathe in: a dialog is a form to be read, not a control
-// panel to be packed.
+// L'espace laissé autour des champs : une boîte de dialogue est un formulaire
+// à lire, et non un panneau de commande à remplir au maximum.
 inline constexpr int kDialogMargin = 18;
 inline constexpr int kDialogRowSpacing = 10;
 
-// Where a dialog puts its own widgets: its fields go in the one, its buttons
-// in the other. Both layouts are already laid out and coloured.
+// Les deux emplacements où une boîte de dialogue place ses widgets : ses
+// champs dans le premier, ses boutons dans le second. Les deux dispositions
+// sont déjà positionnées et colorées.
 struct DialogChrome {
     QVBoxLayout *fields;
     QHBoxLayout *footer;
 };
 
-// Dresses `dialog` and returns the two layouts to fill. Takes over the
-// dialog's top-level layout, so call it before anything else is added.
+// Habille `dialog` et renvoie les deux dispositions à remplir. La fonction
+// prend en charge la disposition principale de la boîte : il faut donc
+// l'appeler avant d'y ajouter quoi que ce soit.
 DialogChrome applyDialogChrome(QDialog *dialog, const QString &bannerText);
 
-// Puts the scheme that is current now on a dialog already dressed, for a
-// dialog still open when the dark button is pressed.
+// Applique la palette courante à une boîte déjà habillée, pour le cas d'une
+// boîte encore ouverte au moment d'un changement de mode clair ou sombre.
 void refreshDialogChrome(QDialog *dialog);
 
-// Draws the eye to the button that finishes the dialog.
+// Met en évidence le bouton qui valide la boîte.
 void markDefaultButton(QAbstractButton *button);
 
-// A line of explanation rather than a label on something: set in the table's
-// ink, lightened, so it reads as an aside.
+// Une ligne d'explication, par opposition à l'étiquette d'un champ : écrite
+// dans la couleur de texte du thème, éclaircie, pour se lire comme une
+// remarque.
 void markHintLabel(QWidget *label);
 
-// A heading over a group of fields, with a rule under it: the table's own
-// colour, which is what marks it as a heading without a larger type size.
+// Un titre au-dessus d'un groupe de champs, souligné d'un filet. Il est écrit
+// dans la couleur du thème, ce qui le signale comme titre sans avoir à
+// l'agrandir.
 QWidget *dialogSectionHeading(QWidget *parent, const QString &text);
 
-// Puts the scheme that is current now on every heading under `root`. A dialog
-// is built fresh each time it is opened and does not need this; the opening
-// menu is built once and lives as long as the window does, so when the dark
-// button is pressed its headings have to be told.
+// Applique la palette courante à tous les titres situés sous `root`. Une
+// boîte de dialogue est reconstruite à chaque ouverture et n'en a pas besoin ;
+// un menu construit une seule fois et conservé pendant toute la vie de la
+// fenêtre, lui, doit voir ses titres recolorés à chaque changement de mode.
 void recolourSectionHeadings(QWidget *root);

@@ -8,8 +8,9 @@
 // Les jeux de cartes disponibles, et celui qui est choisi.
 //
 // La liste contient toujours le jeu que le programme dessine lui-même, puis
-// les fichiers trouvés dans le dossier commun. Le dossier est partagé ; le
-// choix est rangé dans les réglages de chaque programme.
+// les fichiers trouvés dans le dossier commun. Le dossier est partagé entre
+// les programmes ; le choix, lui, est enregistré dans les réglages de
+// chacun.
 
 struct DeckEntry {
     QString id;          // « dessine », ou le nom du fichier sans extension
@@ -27,20 +28,22 @@ class CardDecks {
 public:
     static CardDecks &instance();
 
-    // Relit le dossier : au démarrage, et quand un jeu vient d'être installé.
+    // Relit le dossier : au démarrage, et après l'installation d'un jeu.
     void refresh();
 
     const QVector<DeckEntry> &entries() const { return m_entries; }
     const DeckEntry *entry(const QString &id) const;
 
-    // `builtInId()` est le jeu dessiné par le programme, toujours présent.
+    // `builtInId()` identifie le jeu dessiné par le programme, toujours
+    // présent dans la liste.
     static QString builtInId();
     QString chosenId() const;
     void choose(const QString &id);
     bool usingBuiltIn() const;
 
-    // Le jeu choisi, chargé à la demande. Nul quand c'est le jeu dessiné :
-    // c'est ce que le code de dessin teste.
+    // Le jeu choisi, chargé à la demande. Renvoie nullptr quand le jeu
+    // choisi est celui que le programme dessine lui-même ; c'est à cela que
+    // le code de dessin reconnaît qu'il doit dessiner les cartes.
     const CardSet *current() const;
 
     int chosenBack() const;
