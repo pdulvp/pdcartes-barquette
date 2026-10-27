@@ -327,6 +327,28 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
     m_pipPanel->setCursor(Qt::PointingHandCursor);
     m_pipPanel->setFocusPolicy(Qt::NoFocus);
 
+    // Le milieu de la carte. Deux cases et non une : un style vaut pour les
+    // cinquante-trois cartes d'un jeu, et une seule case imposerait aux
+    // cartes chiffrées le choix fait pour les figures.
+    m_emblemShown = new QCheckBox(tr("Emblème du milieu"), this);
+    m_emblemShown->setToolTip(tr("L'emblème des cinq cartes à motif unique : la couronne du "
+                                 "roi, le diadème de la dame, la fleur de lis du valet, le "
+                                 "personnage du joker, le symbole de l'as, et le numéro "
+                                 "romain d'un atout. Décochez pour ne laisser que le panneau "
+                                 "et les deux index des coins — ce qu'il faut à une carte "
+                                 "dont l'image du panneau est le dessin."));
+    m_emblemShown->setChecked(m_recipe.style.emblemShown);
+    m_emblemShown->setCursor(Qt::PointingHandCursor);
+    m_emblemShown->setFocusPolicy(Qt::NoFocus);
+
+    m_pipsShown = new QCheckBox(tr("Symboles du milieu"), this);
+    m_pipsShown->setToolTip(tr("La grille des symboles des cartes de deux à dix. Décochez "
+                               "pour ne laisser que le panneau et les deux index des coins. "
+                               "Les index disent alors seuls le rang et la couleur."));
+    m_pipsShown->setChecked(m_recipe.style.pipsShown);
+    m_pipsShown->setCursor(Qt::PointingHandCursor);
+    m_pipsShown->setFocusPolicy(Qt::NoFocus);
+
     m_glassy = new QCheckBox(tr("Emblèmes en verre"), this);
     m_glassy->setToolTip(tr("Remplit l'emblème des figures d'un dégradé au lieu d'un aplat : "
                             "clair en haut, sombre sous le milieu, et une lumière renvoyée "
@@ -461,7 +483,14 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         markHintLabel(label);
         cells->addWidget(label, 3, 0);
         cells->addWidget(m_emblem, 3, 1);
-        cells->addWidget(m_glassy, 4, 0, 1, 3);
+        // Les deux cases du milieu vont de pair et se lisent sur une ligne.
+        auto *middleRow = new QHBoxLayout;
+        middleRow->setSpacing(10);
+        middleRow->addWidget(m_emblemShown);
+        middleRow->addWidget(m_pipsShown);
+        middleRow->addStretch();
+        cells->addLayout(middleRow, 4, 0, 1, 3);
+        cells->addWidget(m_glassy, 5, 0, 1, 3);
         // C'est la place restante qui s'étire, et non l'étiquette : les deux
         // champs restent côte à côte au lieu d'être jetés aux deux bords.
         cells->setColumnStretch(3, 1);
@@ -541,6 +570,8 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         const bool onPips = m_recipe.style.panelOnPips;
         const qreal wide = m_recipe.style.panelWidth;
         const qreal tall = m_recipe.style.panelHeight;
+        const bool emblemShown = m_recipe.style.emblemShown;
+        const bool pipsShown = m_recipe.style.pipsShown;
         const bool glassy = m_recipe.style.glassy;
         const RankLetters letters = m_recipe.style.letters;
         const qreal emblem = m_recipe.style.emblemSize;
@@ -549,6 +580,8 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         m_recipe.style.panelOnPips = onPips;
         m_recipe.style.panelWidth = wide;
         m_recipe.style.panelHeight = tall;
+        m_recipe.style.emblemShown = emblemShown;
+        m_recipe.style.pipsShown = pipsShown;
         m_recipe.style.glassy = glassy;
         m_recipe.style.letters = letters;
         m_recipe.style.emblemSize = emblem;
@@ -580,6 +613,14 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         m_recipe.style.panelHeight = percent / 100.0;
         noteEdit();
     });
+    connect(m_emblemShown, &QCheckBox::toggled, this, [this](bool on) {
+        m_recipe.style.emblemShown = on;
+        noteEdit();
+    });
+    connect(m_pipsShown, &QCheckBox::toggled, this, [this](bool on) {
+        m_recipe.style.pipsShown = on;
+        noteEdit();
+    });
     connect(m_glassy, &QCheckBox::toggled, this, [this](bool on) {
         m_recipe.style.glassy = on;
         noteEdit();
@@ -604,6 +645,8 @@ void CardStyleEditor::setRecipe(const DrawnRecipe &how) {
     m_pipPanel->setChecked(m_recipe.style.panelOnPips);
     m_panelWide->setValue(int(std::round(m_recipe.style.panelWidth * 100.0)));
     m_panelTall->setValue(int(std::round(m_recipe.style.panelHeight * 100.0)));
+    m_emblemShown->setChecked(m_recipe.style.emblemShown);
+    m_pipsShown->setChecked(m_recipe.style.pipsShown);
     m_glassy->setChecked(m_recipe.style.glassy);
     m_letters->setCurrentIndex(int(m_recipe.style.letters));
     m_quiet = false;

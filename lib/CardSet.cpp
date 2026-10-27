@@ -45,12 +45,13 @@ const char kRecipeTag[] = "recettes";
 //     5  le panneau sous les symboles des cartes de deux à dix, et sa largeur
 //        et sa hauteur
 //     6  l'image posée dans le panneau, et sa place dedans
+//     7  l'emblème et les symboles du milieu, qui peuvent s'effacer
 //
 // Une recette plus ancienne garde donc les valeurs d'origine des champs
 // qu'elle n'a pas : son panneau derrière les seules figures, à sa taille et de
-// sa couleur, un emblème à sa taille, un emblème plat et les lettres
-// françaises.
-constexpr qint32 kRecipeVersion = 6;
+// sa couleur, un emblème à sa taille, sans image, un emblème plat, les
+// lettres françaises, et son motif du milieu.
+constexpr qint32 kRecipeVersion = 7;
 
 // La taille d'une image, lue dans son en-tête : il n'est pas nécessaire de
 // décoder l'image entière pour connaître ses dimensions. Nulle si le type
@@ -572,6 +573,7 @@ bool CardSet::save(const QString &path, QString *why) const {
                 // plus.
                 out << how.panelArt.bytes << how.panelArt.kind << qreal(how.panelArt.offset.x())
                     << qreal(how.panelArt.offset.y()) << qreal(how.panelArt.scale);
+                out << how.style.emblemShown << how.style.pipsShown;
             }
         }
     }
@@ -756,6 +758,7 @@ bool CardSet::load(const QString &path, QString *why) {
                     // le panneau à sa couleur plutôt que de perdre la carte.
                     if (!how.panelArt.bytes.isEmpty()) how.panelArt.decode();
                 }
+                if (blockVersion >= 7) in >> how.style.emblemShown >> how.style.pipsShown;
                 if (in.status() != QDataStream::Ok) break;
                 how.height = height > 0 ? height : kDrawnHeight;
                 // Une recette dont la case n'a rien reçu serait sans objet.

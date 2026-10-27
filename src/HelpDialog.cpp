@@ -165,6 +165,17 @@ imprimés et ne bouge pas — un panneau réduit laisse dépasser les symboles, 
 que l'aperçu montre aussitôt. Un panneau ne déborde jamais du papier : au-delà
 de la marge de la carte, le facteur ne produit plus rien.</p>
 
+<p><b>Emblème du milieu</b> et <b>Symboles du milieu</b> effacent ce que la
+carte montre entre ses deux index : le premier la couronne, le diadème, la
+fleur de lis, le personnage du joker, le symbole de l'as et le numéro romain
+d'un atout ; le second la grille des symboles des cartes de deux à dix. Deux
+cases et non une, un style valant pour les cinquante-trois cartes d'un jeu :
+les figures peuvent ainsi porter une image seule pendant que les cartes
+chiffrées gardent leurs symboles. Il reste alors le papier, le panneau avec
+son image, et les deux index — lesquels disent seuls le rang et la couleur, et
+ne s'effacent donc jamais. Le mot <b>Joker</b> reste lui aussi, le joker
+n'ayant pas d'index où se nommer.</p>
+
 <p><b>Taille de l'emblème</b> grossit ou réduit la couronne, le diadème, la
 fleur de lis, le bonnet et le symbole de l'as, et <b>Emblèmes en verre</b> les
 remplit d'un dégradé au lieu d'un aplat. Les symboles des cartes de deux à dix

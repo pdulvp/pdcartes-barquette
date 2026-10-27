@@ -144,6 +144,29 @@ struct CardStyle {
     // `kEmblemLargest`.
     qreal emblemSize = 1.0;
 
+    // La carte porte-t-elle son emblème, et ses symboles ?
+    //
+    // Ce sont les deux façons qu'a une carte d'occuper son milieu, et aucune
+    // carte n'a les deux : les cinq cartes à motif unique portent un emblème,
+    // les cartes de deux à dix une grille de symboles. Ce sont néanmoins deux
+    // cases et non une, parce qu'un style vaut pour les cinquante-trois
+    // cartes d'un jeu : une seule case imposerait aux cartes chiffrées le
+    // choix fait pour les figures.
+    //
+    // `emblemShown` couvre l'emblème d'une figure, le symbole de l'as, le
+    // personnage du joker et le numéro romain d'un atout ; `pipsShown`, la
+    // grille des symboles des cartes de deux à dix.
+    //
+    // Décochées, il ne reste que le papier, le panneau avec ce qu'il porte, et
+    // les deux index des coins. C'est ce qu'il faut à une carte dont l'image
+    // du panneau est le dessin : l'emblème viendrait par-dessus.
+    //
+    // Les index, eux, restent : ce sont eux qui disent le rang et la couleur.
+    // Le mot « Joker » reste aussi, le joker n'ayant pas d'index où se
+    // nommer.
+    bool emblemShown = true;
+    bool pipsShown = true;
+
     // Les grands motifs ont-ils l'aspect du verre ?
     //
     // Il s'agit de l'emblème des figures, seuls motifs d'une carte assez

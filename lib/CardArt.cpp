@@ -426,6 +426,8 @@ void paintEmblemPanel(QPainter *painter, const QRectF &box, const QColor &ink,
 void paintCourtMark(QPainter *painter, const QRectF &box, int rank, const QColor &ink,
                     const CardStyle &style, const PanelArt &art) {
     if (style.panelled) paintEmblemPanel(painter, box, ink, style.panel, art);
+    // L'emblème effacé, il ne reste que le panneau et ce qu'il porte.
+    if (!style.emblemShown) return;
     const QColor hollow = style.panelled ? style.panel : style.paper;
 
     // L'emblème, à l'intérieur du panneau. Sa taille suit le facteur demandé ;
@@ -703,7 +705,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         if (style.panelled && panelFits(panel)) {
             paintEmblemPanel(painter, panel, ink, style.panel, art);
         }
-        if (panelFits(panel)) {
+        if (panelFits(panel) && style.emblemShown) {
             const QRectF field = emblemFieldOf(panel);
             QFont number = plainFont(painter);
             number.setBold(true);
@@ -740,10 +742,12 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         const QRectF panel = jokerPanelBox(box, style);
         if (panelFits(panel)) {
             if (style.panelled) paintEmblemPanel(painter, panel, ink, style.panel, art);
-            paintJoker(painter, panel.adjusted(panel.width() * 0.10, panel.height() * 0.08,
-                                               -panel.width() * 0.10, -panel.height() * 0.08),
-                       style);
-        } else {
+            if (style.emblemShown) {
+                paintJoker(painter, panel.adjusted(panel.width() * 0.10, panel.height() * 0.08,
+                                                   -panel.width() * 0.10, -panel.height() * 0.08),
+                           style);
+            }
+        } else if (style.emblemShown) {
             paintJoker(painter, inner, style);
         }
         if (box.width() >= 42) {
@@ -772,7 +776,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         const QRectF figure = emblemPanelBox(box, style);
         if (panelFits(figure)) {
             paintCourtMark(painter, figure, rank, ink, style, art);
-        } else {
+        } else if (style.emblemShown) {
             drawPip(painter, box.center(), std::min(box.width(), box.height()) * 0.42, suit, ink);
         }
     } else if (rank == kAs) {
@@ -791,10 +795,12 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         const QRectF panel = emblemPanelBox(box, style);
         if (panelFits(panel)) {
             if (style.panelled) paintEmblemPanel(painter, panel, ink, style.panel, art);
-            const QRectF field = emblemFieldOf(panel);
-            paintPip(painter, field.center(),
-                     std::min(field.width(), field.height()) * size, suit, body);
-        } else {
+            if (style.emblemShown) {
+                const QRectF field = emblemFieldOf(panel);
+                paintPip(painter, field.center(),
+                         std::min(field.width(), field.height()) * size, suit, body);
+            }
+        } else if (style.emblemShown) {
             // Carte trop petite pour un panneau : un symbole centré, comme
             // pour les trois autres figures. À cette taille il ne s'agit plus
             // d'apparence mais de lisibilité.
@@ -816,7 +822,10 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
             // central indique la couleur et le coin indique le rang, ce qui
             // suffit pour une carte intégrée à une combinaison posée sur le
             // tapis.
-            drawPip(painter, box.center(), std::min(box.width(), box.height()) * 0.40, suit, ink);
+            if (style.pipsShown) {
+                drawPip(painter, box.center(), std::min(box.width(), box.height()) * 0.40, suit,
+                        ink);
+            }
         } else {
             // Le panneau, lorsqu'il est demandé sous les symboles. Son
             // rectangle de départ est déduit de la grille : la grille ne donne
@@ -828,11 +837,13 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
                 const QRectF panel = pipPanelBox(box, style);
                 if (panelFits(panel)) paintEmblemPanel(painter, panel, ink, style.panel, art);
             }
-            for (const QPointF &at : layout) {
-                drawPip(painter,
-                        QPointF(grid.left() + at.x() * grid.width(),
-                                grid.top() + at.y() * grid.height()),
-                        pipSpan, suit, ink);
+            if (style.pipsShown) {
+                for (const QPointF &at : layout) {
+                    drawPip(painter,
+                            QPointF(grid.left() + at.x() * grid.width(),
+                                    grid.top() + at.y() * grid.height()),
+                            pipSpan, suit, ink);
+                }
             }
         }
     }
@@ -870,6 +881,7 @@ bool CardStyle::operator==(const CardStyle &other) const {
            back == other.back && backInk == other.backInk &&
            panelled == other.panelled && panelOnPips == other.panelOnPips &&
            panelWidth == other.panelWidth && panelHeight == other.panelHeight &&
+           emblemShown == other.emblemShown && pipsShown == other.pipsShown &&
            glassy == other.glassy &&
            letters == other.letters && qFuzzyCompare(emblemSize, other.emblemSize);
 }
