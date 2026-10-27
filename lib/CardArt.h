@@ -81,7 +81,7 @@ struct CardStyle {
     QColor paper;    // le papier de la carte
     QColor ink;      // le pique et le trèfle, et le rang dans le coin
     QColor red;      // le cœur et le carreau
-    QColor panel;    // le panneau des figures, beige
+    QColor panel;    // le panneau, beige
     QColor cap;      // le bonnet et l'étoile du joker, et le mot « Joker »
     QColor bell;     // les grelots du bonnet
     QColor back;     // le fond du dos
@@ -99,6 +99,37 @@ struct CardStyle {
     // transparent laisserait son filet, et le filet est ce qui se voit en
     // premier.
     bool panelled = true;
+
+    // Le panneau se trace-t-il aussi sous les symboles des cartes de deux à
+    // dix ?
+    //
+    // C'est un champ à part, et non la case ci-dessus étendue : celle-ci est
+    // écrite dans les fichiers depuis qu'elle existe, où elle ne voulait dire
+    // que « panneau derrière les figures ». Lui faire dire aussi « panneau
+    // sous les symboles » changerait l'aspect des jeux déjà enregistrés dès
+    // qu'on les redessine.
+    //
+    // La case ci-dessus reste le commutateur général : les cartes de deux à
+    // dix reçoivent un panneau lorsque les deux sont vraies.
+    //
+    // La grille des symboles, elle, ne bouge pas : sa disposition est celle
+    // des jeux imprimés, et son bord gauche est posé pour dégager la colonne
+    // du coin. Le panneau est une assise tracée derrière elle.
+    bool panelOnPips = false;
+
+    // La largeur et la hauteur du panneau, en facteur de celles qu'il a par
+    // défaut.
+    //
+    // Des facteurs et non des mesures, pour la raison qui vaut pour
+    // `emblemSize` : le panneau est déduit de la carte, et les cartes sont
+    // rendues à la hauteur qu'on demande. Les valeurs sont bornées au dessin,
+    // entre `kPanelSmallest` et `kPanelLargest`, et le rectangle obtenu est
+    // ramené dans la marge du papier : un panneau ne déborde pas de la carte.
+    //
+    // L'emblème étant inscrit dans un carré déduit du panneau, il suit ces
+    // deux facteurs ; c'est `emblemSize` qui l'en détache.
+    qreal panelWidth = 1.0;
+    qreal panelHeight = 1.0;
 
     // La taille de l'emblème d'une figure -- couronne, diadème, fleur de lis,
     // bonnet du joker, symbole de l'as -- en facteur de celle qu'il a par
@@ -159,6 +190,13 @@ inline constexpr int kDrawnHeight = 420;
 // qu'une tache ; au-dessus, il déborde du papier.
 inline constexpr qreal kEmblemSmallest = 0.30;
 inline constexpr qreal kEmblemLargest = 1.80;
+
+// Bornes de `CardStyle::panelWidth` et `CardStyle::panelHeight`. En dessous,
+// le panneau n'est plus qu'une plaque au milieu du dessin qu'il devait
+// porter ; au-dessus, il occupe toute la marge du papier et le facteur ne
+// produit plus rien.
+inline constexpr qreal kPanelSmallest = 0.50;
+inline constexpr qreal kPanelLargest = 1.40;
 
 // Retourne la police du peintre réinitialisée.
 //

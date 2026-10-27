@@ -38,10 +38,10 @@ const Field kFields[] = {
     {"Papier", &CardStyle::paper, "Le fond de la carte.", false},
     {"Encre noire", &CardStyle::ink, "Le pique et le trèfle, et le rang dans le coin.", false},
     {"Encre rouge", &CardStyle::red, "Le cœur et le carreau.", false},
-    {"Panneau des figures", &CardStyle::panel,
-     "Le rectangle beige derrière les figures : le valet, la dame, le roi, le joker et "
-     "l'as. Décochez pour poser l'emblème à même le papier, et rendre à l'as son grand "
-     "symbole central.",
+    {"Panneau", &CardStyle::panel,
+     "Le rectangle beige que portent les figures : le valet, la dame, le roi, le joker et "
+     "l'as. Décochez pour poser l'emblème à même le papier : seul le rectangle disparaît, "
+     "l'emblème gardant sa taille et sa place.",
      true},
     {"Bonnet du joker", &CardStyle::cap, "Le bonnet, l'étoile, et le mot « Joker ».", false},
     {"Grelots du joker", &CardStyle::bell, "Les trois grelots du bonnet.", false},
@@ -172,6 +172,36 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
                             "de lis, bonnet du joker, symbole de l'as — en proportion de "
                             "celle qu'il a par défaut."));
 
+    // Les deux champs de taille du panneau. Ils sont bornés comme la taille de
+    // l'emblème, et le dessin ramène de toute façon le panneau dans la marge
+    // du papier.
+    auto panelField = [this](const QString &tip) {
+        auto *field = new QSpinBox(this);
+        field->setRange(int(kPanelSmallest * 100.0), int(kPanelLargest * 100.0));
+        field->setSingleStep(5);
+        field->setSuffix(tr(" %"));
+        field->setToolTip(tip);
+        return field;
+    };
+    m_panelWide = panelField(tr("La largeur du panneau, en proportion de celle qu'il a par "
+                                "défaut. L'emblème étant inscrit dedans, il suit cette "
+                                "largeur ; la grille des symboles, elle, ne bouge pas."));
+    m_panelWide->setValue(int(std::round(m_recipe.style.panelWidth * 100.0)));
+    m_panelTall = panelField(tr("La hauteur du panneau, en proportion de celle qu'il a par "
+                                "défaut. Un panneau ne déborde pas du papier : au-delà de la "
+                                "marge de la carte, le facteur ne produit plus rien."));
+    m_panelTall->setValue(int(std::round(m_recipe.style.panelHeight * 100.0)));
+
+    m_pipPanel = new QCheckBox(tr("Sous les symboles"), this);
+    m_pipPanel->setToolTip(tr("Trace le panneau sous les symboles des cartes de deux à dix, "
+                              "et non derrière les seules figures. Les lettres et les "
+                              "symboles des coins se tracent par-dessus : sur une carte "
+                              "imprimée, l'index du coin se lit toujours, quoi qu'il y ait "
+                              "derrière."));
+    m_pipPanel->setChecked(m_recipe.style.panelOnPips);
+    m_pipPanel->setCursor(Qt::PointingHandCursor);
+    m_pipPanel->setFocusPolicy(Qt::NoFocus);
+
     m_glassy = new QCheckBox(tr("Emblèmes en verre"), this);
     m_glassy->setToolTip(tr("Remplit l'emblème des figures d'un dégradé au lieu d'un aplat : "
                             "clair en haut, sombre sous le milieu, et une lumière renvoyée "
@@ -259,9 +289,10 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         return across;
     };
 
-    // Les figures : le panneau, la couleur qu'il prend, et la taille de
-    // l'emblème qu'il porte. La case à cocher sert d'étiquette à la pastille,
-    // la présence et la couleur du panneau se commandant du même endroit.
+    // Le dessin : le panneau, la couleur qu'il prend, les cartes qu'il garnit,
+    // sa taille, et la taille de l'emblème qu'il porte. La case à cocher sert
+    // d'étiquette à la pastille, la présence et la couleur du panneau se
+    // commandant du même endroit.
     auto shapeBlock = [&] {
         int panelAt = 0;
         for (int at = 0; at < kFieldCount; ++at) {
@@ -270,22 +301,45 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         auto *cells = new QGridLayout;
         cells->setHorizontalSpacing(9);
         cells->setVerticalSpacing(compact ? 2 : 5);
+        // La ligne du panneau porte ses trois commandes : sa présence, sa
+        // couleur, et les cartes qu'il garnit. La seconde case se lit dans la
+        // suite de la première — « Panneau », « aussi sous les symboles » — et
+        // tenir sur une ligne lui évite de pousser la section d'un cran sous
+        // la grille des cases.
         cells->addWidget(captionFor(panelAt), 0, 0);
         cells->addWidget(m_swatches.at(panelAt), 0, 1);
+        cells->addWidget(m_pipPanel, 0, 2);
+        // La taille du panneau : deux champs sur une même ligne, séparés du
+        // signe du produit, la largeur puis la hauteur.
+        auto *sizeLabel = new QLabel(tr("Taille du panneau"), this);
+        sizeLabel->setToolTip(m_panelWide->toolTip());
+        markHintLabel(sizeLabel);
+        auto *sizeRow = new QHBoxLayout;
+        sizeRow->setSpacing(4);
+        sizeRow->addWidget(m_panelWide);
+        auto *times = new QLabel(QStringLiteral("×"), this);
+        markHintLabel(times);
+        sizeRow->addWidget(times);
+        sizeRow->addWidget(m_panelTall);
+        // Les deux champs restent côte à côte : c'est la place qui suit qui
+        // s'étire, et non l'espace entre eux.
+        sizeRow->addStretch();
+        cells->addWidget(sizeLabel, 1, 0);
+        cells->addLayout(sizeRow, 1, 1, 1, 2);
         auto *lettersLabel = new QLabel(tr("Lettres"), this);
         lettersLabel->setToolTip(m_letters->toolTip());
         markHintLabel(lettersLabel);
-        cells->addWidget(lettersLabel, 1, 0);
-        cells->addWidget(m_letters, 1, 1);
+        cells->addWidget(lettersLabel, 2, 0);
+        cells->addWidget(m_letters, 2, 1);
         auto *label = new QLabel(tr("Taille de l'emblème"), this);
         label->setToolTip(m_emblem->toolTip());
         markHintLabel(label);
-        cells->addWidget(label, 2, 0);
-        cells->addWidget(m_emblem, 2, 1);
-        cells->addWidget(m_glassy, 3, 0, 1, 2);
+        cells->addWidget(label, 3, 0);
+        cells->addWidget(m_emblem, 3, 1);
+        cells->addWidget(m_glassy, 4, 0, 1, 3);
         // C'est la place restante qui s'étire, et non l'étiquette : les deux
         // champs restent côte à côte au lieu d'être jetés aux deux bords.
-        cells->setColumnStretch(2, 1);
+        cells->setColumnStretch(3, 1);
         return cells;
     };
 
@@ -339,7 +393,7 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         };
 
         part(tr("Les couleurs"), colourBlock(), 1);
-        part(tr("Les figures"), shapeBlock(), 0);
+        part(tr("Le dessin"), shapeBlock(), 0);
         part(tr("L'image"), outputBlock(), 0);
         rows->addLayout(across);
     } else {
@@ -347,7 +401,7 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         rows->addWidget(dialogSectionHeading(this, tr("Les couleurs")));
         rows->addLayout(themeRow());
         rows->addLayout(colourBlock());
-        rows->addWidget(dialogSectionHeading(this, tr("Les figures")));
+        rows->addWidget(dialogSectionHeading(this, tr("Le dessin")));
         rows->addLayout(shapeBlock());
         rows->addWidget(dialogSectionHeading(this, tr("L'image")));
         rows->addLayout(outputBlock());
@@ -359,11 +413,17 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
     auto takeTheme = [this] {
         const int at = std::clamp(m_theme->currentIndex(), 0, kThemeCount - 1);
         const bool panelled = m_recipe.style.panelled;
+        const bool onPips = m_recipe.style.panelOnPips;
+        const qreal wide = m_recipe.style.panelWidth;
+        const qreal tall = m_recipe.style.panelHeight;
         const bool glassy = m_recipe.style.glassy;
         const RankLetters letters = m_recipe.style.letters;
         const qreal emblem = m_recipe.style.emblemSize;
         m_recipe.style = CardStyle::fromPalette(paletteForHue(kThemes[at].hue, m_dark->isChecked()));
         m_recipe.style.panelled = panelled;
+        m_recipe.style.panelOnPips = onPips;
+        m_recipe.style.panelWidth = wide;
+        m_recipe.style.panelHeight = tall;
         m_recipe.style.glassy = glassy;
         m_recipe.style.letters = letters;
         m_recipe.style.emblemSize = emblem;
@@ -381,6 +441,18 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
     });
     connect(m_panelled, &QCheckBox::toggled, this, [this](bool on) {
         m_recipe.style.panelled = on;
+        noteEdit();
+    });
+    connect(m_pipPanel, &QCheckBox::toggled, this, [this](bool on) {
+        m_recipe.style.panelOnPips = on;
+        noteEdit();
+    });
+    connect(m_panelWide, &QSpinBox::valueChanged, this, [this](int percent) {
+        m_recipe.style.panelWidth = percent / 100.0;
+        noteEdit();
+    });
+    connect(m_panelTall, &QSpinBox::valueChanged, this, [this](int percent) {
+        m_recipe.style.panelHeight = percent / 100.0;
         noteEdit();
     });
     connect(m_glassy, &QCheckBox::toggled, this, [this](bool on) {
@@ -404,6 +476,9 @@ void CardStyleEditor::setRecipe(const DrawnRecipe &how) {
     m_height->setValue(m_recipe.height);
     m_emblem->setValue(int(std::round(m_recipe.style.emblemSize * 100.0)));
     m_panelled->setChecked(m_recipe.style.panelled);
+    m_pipPanel->setChecked(m_recipe.style.panelOnPips);
+    m_panelWide->setValue(int(std::round(m_recipe.style.panelWidth * 100.0)));
+    m_panelTall->setValue(int(std::round(m_recipe.style.panelHeight * 100.0)));
     m_glassy->setChecked(m_recipe.style.glassy);
     m_letters->setCurrentIndex(int(m_recipe.style.letters));
     m_quiet = false;
@@ -440,6 +515,12 @@ void CardStyleEditor::pickColour(int field) {
 
 void CardStyleEditor::refreshSwatches() {
     const Palette &scheme = currentPalette();
+    // Les commandes du panneau s'éteignent avec lui : sans rectangle, ni les
+    // cartes qu'il garnit ni sa taille ne veulent dire quoi que ce soit.
+    const bool panelled = m_recipe.style.panelled;
+    if (m_pipPanel) m_pipPanel->setEnabled(panelled);
+    if (m_panelWide) m_panelWide->setEnabled(panelled);
+    if (m_panelTall) m_panelTall->setEnabled(panelled);
     for (int at = 0; at < m_swatches.size() && at < kFieldCount; ++at) {
         // La pastille d'un élément retiré ne colore plus rien : elle est
         // éteinte, plutôt que de laisser croire qu'elle agit encore.

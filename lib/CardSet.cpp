@@ -42,11 +42,13 @@ const char kRecipeTag[] = "recettes";
 //        l'emblème
 //     3  l'aspect de verre de l'emblème
 //     4  la convention qui donne les lettres du coin
+//     5  le panneau sous les symboles des cartes de deux à dix, et sa largeur
+//        et sa hauteur
 //
 // Une recette plus ancienne garde donc les valeurs d'origine des champs
-// qu'elle n'a pas : son panneau, un emblème à sa taille, un emblème plat et
-// les lettres françaises.
-constexpr qint32 kRecipeVersion = 4;
+// qu'elle n'a pas : son panneau derrière les seules figures et à sa taille,
+// un emblème à sa taille, un emblème plat et les lettres françaises.
+constexpr qint32 kRecipeVersion = 5;
 
 // La taille d'une image, lue dans son en-tête : il n'est pas nécessaire de
 // décoder l'image entière pour connaître ses dimensions. Nulle si le type
@@ -560,6 +562,8 @@ bool CardSet::save(const QString &path, QString *why) const {
                 out << how.style.panelled << qreal(how.style.emblemSize);
                 out << how.style.glassy;
                 out << qint32(how.style.letters);
+                out << how.style.panelOnPips << qreal(how.style.panelWidth)
+                    << qreal(how.style.panelHeight);
             }
         }
     }
@@ -725,6 +729,13 @@ bool CardSet::load(const QString &path, QString *why) {
                     if (letters >= 0 && letters < kRankLettersCount) {
                         how.style.letters = RankLetters(letters);
                     }
+                }
+                if (blockVersion >= 5) {
+                    qreal wide = 1.0;
+                    qreal tall = 1.0;
+                    in >> how.style.panelOnPips >> wide >> tall;
+                    how.style.panelWidth = wide > 0.0 ? wide : 1.0;
+                    how.style.panelHeight = tall > 0.0 ? tall : 1.0;
                 }
                 if (in.status() != QDataStream::Ok) break;
                 how.height = height > 0 ? height : kDrawnHeight;

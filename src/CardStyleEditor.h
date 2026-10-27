@@ -56,9 +56,12 @@ private:
     QComboBox *m_theme = nullptr;
     QCheckBox *m_dark = nullptr;
     QSpinBox *m_height = nullptr;
-    // La présence du panneau des figures, et la taille de l'emblème qu'il
-    // porte.
+    // Le panneau : sa présence, son extension aux cartes de deux à dix, sa
+    // largeur et sa hauteur, puis la taille de l'emblème qu'il porte.
     QCheckBox *m_panelled = nullptr;
+    QCheckBox *m_pipPanel = nullptr;
+    QSpinBox *m_panelWide = nullptr;
+    QSpinBox *m_panelTall = nullptr;
     QSpinBox *m_emblem = nullptr;
     QCheckBox *m_glassy = nullptr;
     QComboBox *m_letters = nullptr;

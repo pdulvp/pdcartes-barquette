@@ -255,12 +255,54 @@ QBrush glassBrush(const QColor &ink, bool glassy, qreal top, qreal bottom) {
     return QBrush(sheen);
 }
 
+// La colonne du coin : sa largeur, et la hauteur du rang qui s'y écrit, en
+// part de la carte.
+//
+// Elles sont nommées ici parce que deux dessins les emploient : le coin
+// lui-même, et la grille des symboles, dont le bord gauche est posé au-delà
+// de cette colonne.
+constexpr qreal kIndexWidthPart = 0.175;
+constexpr qreal kIndexHeightPart = 0.155;
+
+// La marge intérieure de la carte : le coin y est posé, et c'est elle qui
+// borne le panneau. Elle est étroite : une marge large laissait la carte vide
+// en son milieu.
+QRectF innerMarginOf(const QRectF &box) {
+    return box.adjusted(box.width() * 0.045, box.height() * 0.040,
+                        -box.width() * 0.045, -box.height() * 0.040);
+}
+
+// Un rectangle de panneau porté à la taille demandée, autour de son centre,
+// puis ramené dans la marge du papier.
+//
+// Les facteurs sont bornés, et la taille obtenue l'est une seconde fois par
+// la marge : un panneau ne déborde pas de la carte, quel que soit le facteur
+// qu'on lui donne.
+QRectF panelSized(const QRectF &base, const QRectF &box, const CardStyle &style) {
+    const QRectF limit = innerMarginOf(box);
+    const qreal wide = std::clamp(style.panelWidth, kPanelSmallest, kPanelLargest);
+    const qreal tall = std::clamp(style.panelHeight, kPanelSmallest, kPanelLargest);
+    QRectF out(0.0, 0.0, std::min(base.width() * wide, limit.width()),
+               std::min(base.height() * tall, limit.height()));
+    out.moveCenter(base.center());
+    // Le panneau du joker n'est pas centré en hauteur sur la carte, le mot
+    // « Joker » s'écrivant en dessous : porté à sa plus grande taille, il sort
+    // par le haut, et il est alors ramené.
+    if (out.left() < limit.left()) out.moveLeft(limit.left());
+    if (out.right() > limit.right()) out.moveRight(limit.right());
+    if (out.top() < limit.top()) out.moveTop(limit.top());
+    if (out.bottom() > limit.bottom()) out.moveBottom(limit.bottom());
+    return out;
+}
+
 // Le rectangle du panneau, le même pour les quatre figures : le valet, la
 // dame, le roi et l'as. Le joker a le sien, un peu moins haut, le mot
-// « Joker » s'écrivant en dessous.
-QRectF emblemPanelBox(const QRectF &box) {
-    return QRectF(box.left() + box.width() * 0.235, box.top() + box.height() * 0.155,
-                  box.width() * 0.53, box.height() * 0.69);
+// « Joker » s'écrivant en dessous, et les cartes de deux à dix le leur, déduit
+// de la grille des symboles qu'il porte.
+QRectF emblemPanelBox(const QRectF &box, const CardStyle &style) {
+    const QRectF base(box.left() + box.width() * 0.235, box.top() + box.height() * 0.155,
+                      box.width() * 0.53, box.height() * 0.69);
+    return panelSized(base, box, style);
 }
 
 // Le carré où s'inscrit l'emblème que porte un panneau.
@@ -510,6 +552,60 @@ QFont indexFont(const QFont &base, qreal height, bool bold) {
     return font;
 }
 
+// Le coin : le rang, surmontant le symbole de la couleur, le tout répété une
+// seconde fois tête-bêche comme sur une carte imprimée. C'est ce qui permet
+// de lire une main en éventail dont seul le bord gauche de chaque carte est
+// visible.
+//
+// Il est tracé en dernier, par-dessus ce que la carte porte : le panneau peut
+// venir sous lui, et l'index du coin d'une carte imprimée se lit toujours,
+// quoi qu'il y ait derrière.
+//
+// La colonne a la même largeur sur les treize rangs : c'est elle qui fixe le
+// bord des deux colonnes de symboles, et une colonne dont la largeur
+// dépendrait du rang placerait les symboles du dix ailleurs que ceux du neuf.
+// Le « 10 », seul rang à deux chiffres, est donc composé un peu plus petit
+// pour y tenir — comme sur une carte imprimée.
+//
+// `withPip` est faux pour un atout, qui n'a pas de couleur : son coin ne
+// porte que son numéro.
+void paintCornerIndex(QPainter *painter, const QRectF &box, const QString &label, int suit,
+                      const QColor &ink, bool withPip) {
+    const QRectF inner = innerMarginOf(box);
+    const qreal indexWidth = box.width() * kIndexWidthPart;
+    const qreal indexHeight = std::max(8.0, box.height() * kIndexHeightPart);
+    QFont rankFont = indexFont(plainFont(painter), indexHeight, true);
+    const qreal wanted = QFontMetricsF(rankFont).horizontalAdvance(label);
+    if (wanted > indexWidth) {
+        rankFont = indexFont(plainFont(painter),
+                             indexHeight * std::max(0.66, indexWidth / wanted), true);
+    }
+    painter->setFont(rankFont);
+
+    for (int turn = 0; turn < 2; ++turn) {
+        painter->save();
+        if (turn == 1) {
+            painter->translate(box.center());
+            painter->rotate(180);
+            painter->translate(-box.center());
+        }
+        painter->setPen(ink);
+        const QRectF where(inner.left(), inner.top(), indexWidth, indexHeight);
+        painter->drawText(where, Qt::AlignHCenter | Qt::AlignVCenter, label);
+        if (withPip) {
+            const qreal pip = std::min(indexWidth * 0.68, indexHeight * 0.74);
+            drawPip(painter,
+                    QPointF(where.center().x(),
+                            where.bottom() + pip * 0.60 + box.height() * 0.012),
+                    pip, suit, ink);
+        }
+        painter->restore();
+        // Une carte trop petite pour deux coins n'en reçoit qu'un : un coin
+        // lisible vaut mieux que deux illisibles.
+        if (box.width() < 40) break;
+    }
+}
+
 // Ce que porte le papier : le coin, les symboles ou l'emblème. Le papier et
 // son filet sont tracés par l'appelant.
 void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
@@ -520,10 +616,8 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
                            ? style.red
                            : style.ink;
 
-    // La marge intérieure, d'où partent le coin et le joker. Elle est étroite :
-    // une marge large laissait la carte vide en son milieu.
-    const QRectF inner = box.adjusted(box.width() * 0.045, box.height() * 0.040,
-                                      -box.width() * 0.045, -box.height() * 0.040);
+    // La marge intérieure, d'où partent le coin et le joker.
+    const QRectF inner = innerMarginOf(box);
 
     if (rank != kJoker && suit == CardSet::kTrumpSuit) {
         // Un atout : son numéro, en chiffres romains sur le panneau des
@@ -533,7 +627,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         // faire un tarot utilisable, dont les atouts se remplacent ensuite
         // par de vraies images.
         const QString roman = CardSet::romanNumber(rank);
-        const QRectF panel = emblemPanelBox(box);
+        const QRectF panel = emblemPanelBox(box, style);
         if (style.panelled && panel.width() > 11.0 && panel.height() > 14.0) {
             paintEmblemPanel(painter, panel, ink, style.panel);
         }
@@ -555,34 +649,10 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
             painter->drawText(field, Qt::AlignCenter, roman);
         }
 
-        // Les coins : le numéro en chiffres arabes, tête-bêche comme le rang
+        // Le coin : le numéro en chiffres arabes, tête-bêche comme le rang
         // d'une carte ordinaire. Un atout n'a pas de couleur, et son coin ne
         // porte donc pas de symbole.
-        const qreal indexWidth = box.width() * 0.175;
-        const qreal indexHeight = std::max(8.0, box.height() * 0.155);
-        const QRectF inner = box.adjusted(box.width() * 0.045, box.height() * 0.040,
-                                          -box.width() * 0.045, -box.height() * 0.040);
-        const QString arabic = QString::number(rank);
-        QFont mark = indexFont(plainFont(painter), indexHeight, true);
-        const qreal wide = QFontMetricsF(mark).horizontalAdvance(arabic);
-        if (wide > indexWidth) {
-            mark = indexFont(plainFont(painter),
-                             indexHeight * std::max(0.66, indexWidth / wide), true);
-        }
-        painter->setFont(mark);
-        for (int turn = 0; turn < 2; ++turn) {
-            painter->save();
-            if (turn == 1) {
-                painter->translate(box.center());
-                painter->rotate(180);
-                painter->translate(-box.center());
-            }
-            painter->setPen(ink);
-            painter->drawText(QRectF(inner.left(), inner.top(), indexWidth, indexHeight),
-                              Qt::AlignHCenter | Qt::AlignVCenter, arabic);
-            painter->restore();
-            if (box.width() < 40) break;
-        }
+        paintCornerIndex(painter, box, QString::number(rank), suit, ink, false);
         return;
     }
 
@@ -595,8 +665,10 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         // de symboles, et il remplissait jusqu'au bord une carte où les
         // treize autres gardent une marge. Il est un peu moins haut que celui
         // des figures, le mot « Joker » s'écrivant en dessous.
-        const QRectF panel(box.left() + box.width() * 0.235, box.top() + box.height() * 0.150,
-                           box.width() * 0.53, box.height() * 0.640);
+        const QRectF panel =
+            panelSized(QRectF(box.left() + box.width() * 0.235, box.top() + box.height() * 0.150,
+                              box.width() * 0.53, box.height() * 0.640),
+                       box, style);
         if (panel.width() > 11.0 && panel.height() > 14.0) {
             if (style.panelled) paintEmblemPanel(painter, panel, ink, style.panel);
             paintJoker(painter, panel.adjusted(panel.width() * 0.10, panel.height() * 0.08,
@@ -621,61 +693,20 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         return;
     }
 
-    // Le coin : le rang, surmontant le symbole de couleur. Il est répété deux
-    // fois, tête-bêche, comme sur une carte imprimée ; c'est ce qui permet de
-    // lire une main en éventail dont seul le bord gauche de chaque carte est
-    // visible.
-    //
-    // La colonne du coin a la même largeur sur les treize rangs : c'est elle
-    // qui fixe le bord des deux colonnes de symboles, et une colonne dont la
-    // largeur dépendrait du rang placerait les symboles du dix ailleurs que
-    // ceux du neuf. Le « 10 », seul rang à deux chiffres, est donc composé un
-    // peu plus petit pour y tenir — comme sur une carte imprimée.
-    const qreal indexWidth = box.width() * 0.175;
-    const qreal indexHeight = std::max(8.0, box.height() * 0.155);
-    const QString label = cardRankLabel(rank, style.letters);
-    QFont rankFont = indexFont(plainFont(painter), indexHeight, true);
-    const qreal wanted = QFontMetricsF(rankFont).horizontalAdvance(label);
-    if (wanted > indexWidth) {
-        rankFont = indexFont(plainFont(painter),
-                             indexHeight * std::max(0.66, indexWidth / wanted), true);
-    }
-    painter->setFont(rankFont);
-
-    for (int turn = 0; turn < 2; ++turn) {
-        painter->save();
-        if (turn == 1) {
-            painter->translate(box.center());
-            painter->rotate(180);
-            painter->translate(-box.center());
-        }
-        painter->setPen(ink);
-        const QRectF where(inner.left(), inner.top(), indexWidth, indexHeight);
-        painter->drawText(where, Qt::AlignHCenter | Qt::AlignVCenter, label);
-        const qreal pip = std::min(indexWidth * 0.68, indexHeight * 0.74);
-        drawPip(painter,
-                QPointF(where.center().x(), where.bottom() + pip * 0.60 + box.height() * 0.012),
-                pip, suit, ink);
-        painter->restore();
-        // Une carte trop petite pour deux coins n'en reçoit qu'un : un coin
-        // lisible vaut mieux que deux illisibles.
-        if (box.width() < 40) break;
-    }
-
-    // Les figures et l'as tiennent le centre sur presque toute la largeur :
-    // sur une carte imprimée, le coin n'occupe que le coin. Ils ne sont donc
-    // pas placés dans la grille des symboles, qui est étroite, mais dans leur
-    // propre rectangle.
+    // Le milieu de la carte : son panneau, et ce qu'il porte. Il est tracé
+    // avant le coin, lequel vient par-dessus.
     if (rank >= kValet) {
-        const QRectF figure = emblemPanelBox(box);
+        // Les figures et l'as tiennent le centre sur presque toute la
+        // largeur : sur une carte imprimée, le coin n'occupe que le coin. Ils
+        // ne sont donc pas placés dans la grille des symboles, qui est
+        // étroite, mais dans leur propre rectangle.
+        const QRectF figure = emblemPanelBox(box, style);
         if (figure.width() > 11.0 && figure.height() > 14.0) {
             paintCourtMark(painter, figure, rank, ink, style);
         } else {
             drawPip(painter, box.center(), std::min(box.width(), box.height()) * 0.42, suit, ink);
         }
-        return;
-    }
-    if (rank == kAs) {
+    } else if (rank == kAs) {
         // L'as compte parmi les figures : il porte le même panneau qu'elles,
         // suit la même taille d'emblème, et peut être en verre comme elles.
         //
@@ -688,46 +719,63 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         // C'est « Taille de l'emblème » qui règle la taille, et elle seule.
         const QBrush body = glassBrush(ink, style.glassy, kPipTop, kPipBottom);
         const qreal size = std::clamp(style.emblemSize, kEmblemSmallest, kEmblemLargest);
-        const QRectF panel = emblemPanelBox(box);
+        const QRectF panel = emblemPanelBox(box, style);
         if (panel.width() > 11.0 && panel.height() > 14.0) {
             if (style.panelled) paintEmblemPanel(painter, panel, ink, style.panel);
             const QRectF field = emblemFieldOf(panel);
             paintPip(painter, field.center(),
                      std::min(field.width(), field.height()) * size, suit, body);
-            return;
+        } else {
+            // Carte trop petite pour un panneau : un symbole centré, comme
+            // pour les trois autres figures. À cette taille il ne s'agit plus
+            // d'apparence mais de lisibilité.
+            paintPip(painter, box.center(),
+                     std::min(box.width() * 0.52, box.height() * 0.42) * size, suit, body);
         }
-        // Carte trop petite pour un panneau : un symbole centré, comme pour
-        // les trois autres figures. À cette taille il ne s'agit plus
-        // d'apparence mais de lisibilité.
-        paintPip(painter, box.center(),
-                 std::min(box.width() * 0.52, box.height() * 0.42) * size, suit, body);
-        return;
+    } else {
+        // La grille des symboles : le rectangle que forment les *centres* des
+        // symboles des quatre coins.
+        //
+        // Son bord gauche est posé au-delà de la colonne du coin, moitié d'un
+        // symbole comprise, afin qu'aucun symbole ne vienne sous le rang ni
+        // sous le symbole du coin.
+        const QVector<QPointF> &layout = pipLayout(rank);
+        const qreal pipSpan = std::min(box.width() * 0.170, box.height() * 0.132);
+        const qreal column =
+            inner.left() + box.width() * kIndexWidthPart + box.width() * 0.014 + pipSpan / 2.0;
+        const QRectF grid(column, box.top() + box.height() * 0.180,
+                          box.width() - 2.0 * (column - box.left()), box.height() * 0.640);
+        if (grid.width() < 12.0 || pipSpan < 4.0 || layout.isEmpty()) {
+            // Carte trop petite pour la disposition complète : un symbole
+            // central indique la couleur et le coin indique le rang, ce qui
+            // suffit pour une carte intégrée à une combinaison posée sur le
+            // tapis.
+            drawPip(painter, box.center(), std::min(box.width(), box.height()) * 0.40, suit, ink);
+        } else {
+            // Le panneau, lorsqu'il est demandé sous les symboles. Son
+            // rectangle de départ est déduit de la grille : la grille ne donne
+            // que les centres des symboles, et il faut donc la rendre à la
+            // place qu'ils occupent vraiment — une moitié de symbole de chaque
+            // côté — puis ajouter le peu de beige qu'il faut autour pour que
+            // ce soit une assise et non un fond rempli à ras.
+            if (style.panelled && style.panelOnPips) {
+                const qreal bezel = pipSpan * 0.70;
+                const QRectF panel =
+                    panelSized(grid.adjusted(-bezel, -bezel, bezel, bezel), box, style);
+                if (panel.width() > 11.0 && panel.height() > 14.0) {
+                    paintEmblemPanel(painter, panel, ink, style.panel);
+                }
+            }
+            for (const QPointF &at : layout) {
+                drawPip(painter,
+                        QPointF(grid.left() + at.x() * grid.width(),
+                                grid.top() + at.y() * grid.height()),
+                        pipSpan, suit, ink);
+            }
+        }
     }
 
-    // La grille des symboles : le rectangle que forment les *centres* des
-    // symboles des quatre coins.
-    //
-    // Son bord gauche est posé au-delà de la colonne du coin, moitié d'un
-    // symbole comprise, afin qu'aucun symbole ne vienne sous le rang ni sous
-    // le symbole du coin.
-    const QVector<QPointF> &layout = pipLayout(rank);
-    const qreal pipSpan = std::min(box.width() * 0.170, box.height() * 0.132);
-    const qreal column = inner.left() + indexWidth + box.width() * 0.014 + pipSpan / 2.0;
-    const QRectF grid(column, box.top() + box.height() * 0.180,
-                      box.width() - 2.0 * (column - box.left()), box.height() * 0.640);
-    if (grid.width() < 12.0 || pipSpan < 4.0 || layout.isEmpty()) {
-        // Carte trop petite pour la disposition complète : un symbole central
-        // indique la couleur et le coin indique le rang, ce qui suffit pour
-        // une carte intégrée à une combinaison posée sur le tapis.
-        drawPip(painter, box.center(), std::min(box.width(), box.height()) * 0.40, suit, ink);
-        return;
-    }
-    for (const QPointF &at : layout) {
-        drawPip(painter,
-                QPointF(grid.left() + at.x() * grid.width(),
-                        grid.top() + at.y() * grid.height()),
-                pipSpan, suit, ink);
-    }
+    paintCornerIndex(painter, box, cardRankLabel(rank, style.letters), suit, ink, true);
 }
 
 } // namespace
@@ -758,7 +806,9 @@ bool CardStyle::operator==(const CardStyle &other) const {
     return paper == other.paper && ink == other.ink && red == other.red &&
            panel == other.panel && cap == other.cap && bell == other.bell &&
            back == other.back && backInk == other.backInk &&
-           panelled == other.panelled && glassy == other.glassy &&
+           panelled == other.panelled && panelOnPips == other.panelOnPips &&
+           panelWidth == other.panelWidth && panelHeight == other.panelHeight &&
+           glassy == other.glassy &&
            letters == other.letters && qFuzzyCompare(emblemSize, other.emblemSize);
 }
 

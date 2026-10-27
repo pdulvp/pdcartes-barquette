@@ -128,13 +128,24 @@ plus</td></tr>
 <p>Le <b>thème</b> donne toutes les couleurs d'un coup ; les pastilles en
 dessous les retouchent une à une.</p>
 
-<p>Les réglages de la partie <b>Les figures</b> valent pour les cinq cartes
-qui portent un motif unique au lieu d'une grille de symboles : le <b>valet</b>,
-la <b>dame</b>, le <b>roi</b>, le <b>joker</b> et l'<b>as</b>. <b>Panneau des
-figures</b> est le rectangle beige qu'elles portent ; décochez-le et l'emblème
-est posé à même le papier — l'as retrouvant alors son grand symbole central.
-<b>Taille de l'emblème</b> grossit ou réduit la couronne, le diadème, la fleur
-de lis, le bonnet et le symbole de l'as, et <b>Emblèmes en verre</b> les
+<p><b>Panneau</b>, dans la partie <b>Le dessin</b>, est le rectangle beige que
+portent les cinq cartes à motif unique : le <b>valet</b>, la <b>dame</b>, le
+<b>roi</b>, le <b>joker</b> et l'<b>as</b>. Décochez-le et l'emblème est posé à
+même le papier ; seul le rectangle disparaît, l'emblème gardant sa taille et sa
+place. <b>Sous les symboles</b> le trace en plus sous les symboles des
+cartes de deux à dix, les lettres et les symboles des coins venant par-dessus :
+sur une carte imprimée, l'index du coin se lit toujours, quoi qu'il y ait
+derrière.</p>
+
+<p><b>Taille du panneau</b> donne sa largeur puis sa hauteur, en proportion de
+celles qu'il a par défaut. L'emblème est inscrit dans le panneau et suit donc
+ces deux facteurs ; la grille des symboles, elle, garde la disposition des jeux
+imprimés et ne bouge pas — un panneau réduit laisse dépasser les symboles, ce
+que l'aperçu montre aussitôt. Un panneau ne déborde jamais du papier : au-delà
+de la marge de la carte, le facteur ne produit plus rien.</p>
+
+<p><b>Taille de l'emblème</b> grossit ou réduit la couronne, le diadème, la
+fleur de lis, le bonnet et le symbole de l'as, et <b>Emblèmes en verre</b> les
 remplit d'un dégradé au lieu d'un aplat. Les symboles des cartes de deux à dix
 restent plats : à leur taille, un dégradé ne se lirait pas.</p>
 
