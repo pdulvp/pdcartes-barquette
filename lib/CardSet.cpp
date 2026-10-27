@@ -24,10 +24,17 @@ constexpr quint16 kFormatVersion = 1;
 // s'agit bien de recettes et non d'un bloc d'une autre sorte, ajouté un jour
 // à la même place.
 const char kRecipeTag[] = "recettes";
-// Version 2 : le panneau des figures peut être retiré, et l'emblème
-// redimensionné. Une recette en version 1 n'a ni l'un ni l'autre, et garde
-// donc son panneau et un emblème à sa taille d'origine.
-constexpr qint32 kRecipeVersion = 2;
+// Les versions du bloc se lisent en cascade, chacune n'ajoutant que ses
+// champs à la fin de chaque recette :
+//
+//     1  les couleurs et la hauteur de rendu
+//     2  le panneau des figures, qui peut être retiré, et la taille de
+//        l'emblème
+//     3  l'aspect de verre de l'emblème
+//
+// Une recette plus ancienne garde donc les valeurs d'origine des champs
+// qu'elle n'a pas : son panneau, un emblème à sa taille et un emblème plat.
+constexpr qint32 kRecipeVersion = 3;
 
 // La taille d'une image, lue dans son en-tête : il n'est pas nécessaire de
 // décoder l'image entière pour connaître ses dimensions. Nulle si le type
@@ -388,6 +395,7 @@ bool CardSet::save(const QString &path, QString *why) const {
                 out << how.style.paper << how.style.ink << how.style.red << how.style.panel
                     << how.style.cap << how.style.bell << how.style.back << how.style.backInk;
                 out << how.style.panelled << qreal(how.style.emblemSize);
+                out << how.style.glassy;
             }
         }
     }
@@ -528,6 +536,7 @@ bool CardSet::load(const QString &path, QString *why) {
                     in >> how.style.panelled >> emblem;
                     how.style.emblemSize = emblem > 0.0 ? emblem : 1.0;
                 }
+                if (blockVersion >= 3) in >> how.style.glassy;
                 if (in.status() != QDataStream::Ok) break;
                 how.height = height > 0 ? height : kDrawnHeight;
                 // Une recette dont la case n'a rien reçu serait sans objet.

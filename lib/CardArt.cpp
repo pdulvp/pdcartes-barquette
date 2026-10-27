@@ -1,9 +1,11 @@
 #include "CardArt.h"
 
+#include <QBrush>
 #include <QCoreApplication>
 #include <QFont>
 #include <QFontMetricsF>
 #include <QGuiApplication>
+#include <QLinearGradient>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPointF>
@@ -58,6 +60,14 @@ constexpr qreal kCornerPart = 0.035;
 //
 // C'est l'encombrement qu'avait le trèfle, le plus ample des quatre.
 constexpr qreal kPipBox = 1.72;
+
+// L'emprise verticale des deux motifs qui peuvent être en verre, dans leur
+// repère local : celle d'un emblème, et celle d'un symbole de couleur, lequel
+// est inscrit dans un carré et est donc symétrique.
+constexpr qreal kEmblemTop = -0.95;
+constexpr qreal kEmblemBottom = 0.85;
+constexpr qreal kPipTop = -kPipBox / 2.0;
+constexpr qreal kPipBottom = kPipBox / 2.0;
 
 QPainterPath buildPipPath(int suit) {
     QPainterPath path;
@@ -174,6 +184,65 @@ const QPainterPath &pipPath(int suit) {
     return kShapes.at(suit);
 }
 
+// Le pinceau d'un motif : un aplat, ou le dégradé qui lui donne l'aspect du
+// verre.
+//
+// Le dégradé est donné dans le repère local du motif, celui où le carré unité
+// va de -1 à 1 : il traverse donc tous les morceaux d'un même emblème sans
+// raccord, quelle que soit la place de chacun, et il suit la taille du motif
+// sans qu'il y ait rien à recalculer.
+//
+// Il est porté par le pinceau, et non repassé après coup sur l'emblème fini :
+// un reflet translucide repassé supposerait de connaître la silhouette de
+// l'emblème, dont les morceaux se recouvrent — la croix sur la couronne, la
+// perle sur le diadème —, et laisserait une couture sur chaque recouvrement.
+// `top` et `bottom` sont la hauteur qu'occupe réellement le motif dans son
+// repère local, et non le carré unité : une rampe plus haute que le dessin
+// garde ses deux extrémités hors de celui-ci, et la lumière renvoyée par le
+// bas ne se voit jamais. Un emblème et un symbole de couleur n'ayant pas la
+// même emprise, chacun donne la sienne.
+QBrush glassBrush(const QColor &ink, bool glassy, qreal top, qreal bottom) {
+    if (!glassy) return QBrush(ink);
+    QLinearGradient sheen(QPointF(0.0, top), QPointF(0.0, bottom));
+    sheen.setColorAt(0.00, blendColours(ink, QColor(Qt::white), 0.62));
+    sheen.setColorAt(0.30, blendColours(ink, QColor(Qt::white), 0.28));
+    sheen.setColorAt(0.48, ink);
+    // La cassure du milieu, nette : c'est elle qui fait lire le dégradé comme
+    // un reflet plutôt que comme une ombre.
+    sheen.setColorAt(0.52, blendColours(ink, QColor(Qt::black), 0.24));
+    sheen.setColorAt(0.86, blendColours(ink, QColor(Qt::black), 0.06));
+    // La lumière renvoyée par en dessous, qui détache le bas de l'emblème.
+    sheen.setColorAt(1.00, blendColours(ink, QColor(Qt::white), 0.34));
+    return QBrush(sheen);
+}
+
+// Le rectangle du panneau, le même pour les quatre figures : le valet, la
+// dame, le roi et l'as. Le joker a le sien, un peu moins haut, le mot
+// « Joker » s'écrivant en dessous.
+QRectF emblemPanelBox(const QRectF &box) {
+    return QRectF(box.left() + box.width() * 0.235, box.top() + box.height() * 0.155,
+                  box.width() * 0.53, box.height() * 0.69);
+}
+
+// Le carré où s'inscrit l'emblème que porte un panneau.
+QRectF emblemFieldOf(const QRectF &panel) {
+    return panel.adjusted(panel.width() * 0.12, panel.height() * 0.10,
+                          -panel.width() * 0.12, -panel.height() * 0.10);
+}
+
+// Le symbole d'une couleur, au pinceau demandé. `drawPip()` n'expose que
+// l'aplat : seul l'as emploie un dégradé, et c'est ici qu'il est dessiné.
+void paintPip(QPainter *painter, const QPointF &middle, qreal span, int suit,
+              const QBrush &ink) {
+    painter->save();
+    painter->translate(middle);
+    painter->scale(span / 2.0, span / 2.0);
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(ink);
+    painter->drawPath(pipPath(suit));
+    painter->restore();
+}
+
 // Le panneau des cartes à emblème : un rectangle beige arrondi, cerné d'un
 // filet à la couleur de la carte. Seul au milieu du papier, un emblème
 // flottait ; le panneau lui donne une assise, et la marge blanche qui
@@ -208,15 +277,15 @@ void paintCourtMark(QPainter *painter, const QRectF &box, int rank, const QColor
 
     // L'emblème, à l'intérieur du panneau. Sa taille suit le facteur demandé ;
     // sa place, elle, ne bouge pas : il reste centré sur le panneau.
-    const QRectF field = box.adjusted(box.width() * 0.12, box.height() * 0.10,
-                                      -box.width() * 0.12, -box.height() * 0.10);
+    const QRectF field = emblemFieldOf(box);
     const qreal span = std::min(field.width(), field.height()) *
                        std::clamp(style.emblemSize, kEmblemSmallest, kEmblemLargest);
     painter->save();
     painter->translate(field.center());
     painter->scale(span / 2.0, span / 2.0);
     painter->setPen(QPen(ink, 0.08, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-    painter->setBrush(ink);
+    const QBrush body = glassBrush(ink, style.glassy, kEmblemTop, kEmblemBottom);
+    painter->setBrush(body);
 
     if (rank == kRoi) {
         // Couronne du roi : cinq pointes surmontées d'une croix, qui la
@@ -235,7 +304,7 @@ void paintCourtMark(QPainter *painter, const QRectF &box, int rank, const QColor
         painter->drawRect(QRectF(-0.24, -0.80, 0.48, 0.16));
         painter->setBrush(hollow);
         painter->drawRect(QRectF(-0.72, 0.44, 1.44, 0.18));
-        painter->setBrush(ink);
+        painter->setBrush(body);
         painter->drawRect(QRectF(-0.78, 0.40, 1.56, 0.26));
     } else if (rank == kDame) {
         // Diadème de la dame : trois pointes, plus basses et plus arrondies
@@ -256,7 +325,7 @@ void paintCourtMark(QPainter *painter, const QRectF &box, int rank, const QColor
         }
         painter->setBrush(hollow);
         painter->drawRect(QRectF(-0.66, 0.42, 1.32, 0.16));
-        painter->setBrush(ink);
+        painter->setBrush(body);
         painter->drawRect(QRectF(-0.72, 0.38, 1.44, 0.24));
     } else {
         // Valet : une fleur de lis.
@@ -287,8 +356,8 @@ void paintJoker(QPainter *painter, const QRectF &box, const CardStyle &style) {
     painter->translate(box.center());
     painter->scale(span / 2.0, span / 2.0);
 
-    const QColor cloth = style.cap;
-    const QColor bell = style.bell;
+    const QBrush cloth = glassBrush(style.cap, style.glassy, kEmblemTop, kEmblemBottom);
+    const QBrush bell = glassBrush(style.bell, style.glassy, kEmblemTop, kEmblemBottom);
 
     QPainterPath hat;
     hat.moveTo(-0.70, 0.18);
@@ -462,8 +531,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
     // pas placés dans la grille des symboles, qui est étroite, mais dans leur
     // propre rectangle.
     if (rank >= kValet) {
-        const QRectF figure(box.left() + box.width() * 0.235, box.top() + box.height() * 0.155,
-                            box.width() * 0.53, box.height() * 0.69);
+        const QRectF figure = emblemPanelBox(box);
         if (figure.width() > 11.0 && figure.height() > 14.0) {
             paintCourtMark(painter, figure, rank, ink, style);
         } else {
@@ -472,10 +540,31 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         return;
     }
     if (rank == kAs) {
-        // Un symbole unique et de grande taille, conformément à l'usage pour
-        // un as.
-        drawPip(painter, box.center(), std::min(box.width() * 0.52, box.height() * 0.42), suit,
-                ink);
+        // L'as compte parmi les figures : il porte le même panneau qu'elles,
+        // suit la même taille d'emblème, et peut être en verre comme elles.
+        //
+        // Son symbole est inscrit dans le carré du panneau que ce dernier
+        // soit tracé ou non, exactement comme l'emblème des trois autres
+        // figures : la case à cocher ne commande que la présence du
+        // rectangle. Il a brièvement gardé, sans panneau, la grande taille
+        // traditionnelle au centre de la carte ; décocher la case changeait
+        // alors deux choses au lieu d'une, ce qui se remarquait aussitôt.
+        // C'est « Taille de l'emblème » qui règle la taille, et elle seule.
+        const QBrush body = glassBrush(ink, style.glassy, kPipTop, kPipBottom);
+        const qreal size = std::clamp(style.emblemSize, kEmblemSmallest, kEmblemLargest);
+        const QRectF panel = emblemPanelBox(box);
+        if (panel.width() > 11.0 && panel.height() > 14.0) {
+            if (style.panelled) paintEmblemPanel(painter, panel, ink, style.panel);
+            const QRectF field = emblemFieldOf(panel);
+            paintPip(painter, field.center(),
+                     std::min(field.width(), field.height()) * size, suit, body);
+            return;
+        }
+        // Carte trop petite pour un panneau : un symbole centré, comme pour
+        // les trois autres figures. À cette taille il ne s'agit plus
+        // d'apparence mais de lisibilité.
+        paintPip(painter, box.center(),
+                 std::min(box.width() * 0.52, box.height() * 0.42) * size, suit, body);
         return;
     }
 
@@ -533,7 +622,8 @@ bool CardStyle::operator==(const CardStyle &other) const {
     return paper == other.paper && ink == other.ink && red == other.red &&
            panel == other.panel && cap == other.cap && bell == other.bell &&
            back == other.back && backInk == other.backInk &&
-           panelled == other.panelled && qFuzzyCompare(emblemSize, other.emblemSize);
+           panelled == other.panelled && glassy == other.glassy &&
+           qFuzzyCompare(emblemSize, other.emblemSize);
 }
 
 QFont plainFont(const QPainter *painter) {
@@ -566,13 +656,7 @@ QString cardRankLabel(int rank) {
 bool cardSuitIsRed(int suit) { return suit == kCoeur || suit == kCarreau; }
 
 void drawPip(QPainter *painter, const QPointF &middle, qreal span, int suit, const QColor &ink) {
-    painter->save();
-    painter->translate(middle);
-    painter->scale(span / 2.0, span / 2.0);
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(ink);
-    painter->drawPath(pipPath(suit));
-    painter->restore();
+    paintPip(painter, middle, span, suit, QBrush(ink));
 }
 
 void drawSuitPip(QPainter *painter, const QRectF &box, int suit, const QColor &ink) {

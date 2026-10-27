@@ -39,8 +39,9 @@ const Field kFields[] = {
     {"Encre noire", &CardStyle::ink, "Le pique et le trèfle, et le rang dans le coin.", false},
     {"Encre rouge", &CardStyle::red, "Le cœur et le carreau.", false},
     {"Panneau des figures", &CardStyle::panel,
-     "Le rectangle beige derrière le roi, la dame, le valet et le joker. Décochez pour "
-     "poser l'emblème à même le papier.",
+     "Le rectangle beige derrière les figures : le valet, la dame, le roi, le joker et "
+     "l'as. Décochez pour poser l'emblème à même le papier, et rendre à l'as son grand "
+     "symbole central.",
      true},
     {"Bonnet du joker", &CardStyle::cap, "Le bonnet, l'étoile, et le mot « Joker ».", false},
     {"Grelots du joker", &CardStyle::bell, "Les trois grelots du bonnet.", false},
@@ -167,8 +168,19 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
     m_emblem->setSingleStep(5);
     m_emblem->setValue(int(std::round(m_recipe.style.emblemSize * 100.0)));
     m_emblem->setSuffix(tr(" %"));
-    m_emblem->setToolTip(tr("La taille de la couronne, du diadème, de la fleur de lis et du "
-                            "bonnet du joker, en proportion de celle qu'ils ont par défaut."));
+    m_emblem->setToolTip(tr("La taille de l'emblème des figures — couronne, diadème, fleur "
+                            "de lis, bonnet du joker, symbole de l'as — en proportion de "
+                            "celle qu'il a par défaut."));
+
+    m_glassy = new QCheckBox(tr("Emblèmes en verre"), this);
+    m_glassy->setToolTip(tr("Remplit l'emblème des figures d'un dégradé au lieu d'un aplat : "
+                            "clair en haut, sombre sous le milieu, et une lumière renvoyée "
+                            "par le bas. Les symboles des cartes de deux à dix restent "
+                            "plats, trop petits pour qu'un dégradé s'y lise, et les traits "
+                            "évidés aussi, un creux ne renvoyant pas la lumière."));
+    m_glassy->setChecked(m_recipe.style.glassy);
+    m_glassy->setCursor(Qt::PointingHandCursor);
+    m_glassy->setFocusPolicy(Qt::NoFocus);
 
     for (int at = 0; at < kFieldCount; ++at) {
         auto *swatch = new QToolButton(this);
@@ -253,6 +265,7 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         markHintLabel(label);
         cells->addWidget(label, 1, 0);
         cells->addWidget(m_emblem, 1, 1);
+        cells->addWidget(m_glassy, 2, 0, 1, 2);
         // C'est la place restante qui s'étire, et non l'étiquette : les deux
         // champs restent côte à côte au lieu d'être jetés aux deux bords.
         cells->setColumnStretch(2, 1);
@@ -319,9 +332,11 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
     auto takeTheme = [this] {
         const int at = std::clamp(m_theme->currentIndex(), 0, kThemeCount - 1);
         const bool panelled = m_recipe.style.panelled;
+        const bool glassy = m_recipe.style.glassy;
         const qreal emblem = m_recipe.style.emblemSize;
         m_recipe.style = CardStyle::fromPalette(paletteForHue(kThemes[at].hue, m_dark->isChecked()));
         m_recipe.style.panelled = panelled;
+        m_recipe.style.glassy = glassy;
         m_recipe.style.emblemSize = emblem;
         noteEdit();
     };
@@ -339,6 +354,10 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         m_recipe.style.panelled = on;
         noteEdit();
     });
+    connect(m_glassy, &QCheckBox::toggled, this, [this](bool on) {
+        m_recipe.style.glassy = on;
+        noteEdit();
+    });
 
     refreshSwatches();
 }
@@ -351,6 +370,7 @@ void CardStyleEditor::setRecipe(const DrawnRecipe &how) {
     m_height->setValue(m_recipe.height);
     m_emblem->setValue(int(std::round(m_recipe.style.emblemSize * 100.0)));
     m_panelled->setChecked(m_recipe.style.panelled);
+    m_glassy->setChecked(m_recipe.style.glassy);
     m_quiet = false;
     m_preview->setRecipe(m_recipe);
     refreshSwatches();

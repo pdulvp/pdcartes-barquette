@@ -100,11 +100,19 @@ plus</td></tr>
 </table>
 
 <p>Le <b>thème</b> donne toutes les couleurs d'un coup ; les pastilles en
-dessous les retouchent une à une. Celle qui s'appelle <b>Panneau des
-figures</b> est le rectangle beige derrière le roi, la dame, le valet et le
-joker : sa case se décoche, et l'emblème est alors posé à même le papier. Le
-champ <b>Emblème</b> grossit ou réduit la couronne, le diadème, la fleur de
-lis et le bonnet du joker. La <b>hauteur</b> est celle des images produites :
+dessous les retouchent une à une.</p>
+
+<p>Les réglages de la partie <b>Les figures</b> valent pour les cinq cartes
+qui portent un motif unique au lieu d'une grille de symboles : le <b>valet</b>,
+la <b>dame</b>, le <b>roi</b>, le <b>joker</b> et l'<b>as</b>. <b>Panneau des
+figures</b> est le rectangle beige qu'elles portent ; décochez-le et l'emblème
+est posé à même le papier — l'as retrouvant alors son grand symbole central.
+<b>Taille de l'emblème</b> grossit ou réduit la couronne, le diadème, la fleur
+de lis, le bonnet et le symbole de l'as, et <b>Emblèmes en verre</b> les
+remplit d'un dégradé au lieu d'un aplat. Les symboles des cartes de deux à dix
+restent plats : à leur taille, un dégradé ne se lirait pas.</p>
+
+<p> La <b>hauteur</b> est celle des images produites :
 quelques centaines de pixels suffisent, les cinquante-trois cartes partageant
 le même fichier.</p>
 

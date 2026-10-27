@@ -47,34 +47,56 @@ qreal cardCornerFor(const QRectF &box);
 // et ne propose pas la couleur du panneau des figures, qui n'existe que sur
 // une carte. Et l'atelier fabrique des jeux dont les couleurs n'ont aucune
 // raison de suivre les siennes : elles sont choisies carte par carte.
+// Ce que « les figures » recouvre ici : le valet, la dame, le roi, le joker et
+// l'as. Ce sont les cinq cartes qui ne montrent pas de grille de symboles mais
+// un motif unique, assez grand pour porter un panneau, un dégradé et une
+// taille à soi.
 struct CardStyle {
     QColor paper;    // le papier de la carte
     QColor ink;      // le pique et le trèfle, et le rang dans le coin
     QColor red;      // le cœur et le carreau
-    QColor panel;    // le panneau des trois figures et du joker, beige
+    QColor panel;    // le panneau des figures, beige
     QColor cap;      // le bonnet et l'étoile du joker, et le mot « Joker »
     QColor bell;     // les grelots du bonnet
     QColor back;     // le fond du dos
     QColor backInk;  // le treillis du dos
 
-    // Le panneau est-il tracé ? Sans lui, l'emblème d'une figure est posé à
+    // Le panneau des figures est-il tracé ? Sans lui, l'emblème est posé à
     // même le papier, et les traits évidés qui s'y découpaient -- le bandeau
     // de la couronne, celui du diadème, la ceinture de la fleur de lis -- se
     // découpent sur le papier.
+    //
+    // Seule la présence du rectangle est en jeu : l'emblème garde sa taille
+    // et sa place, l'as compris. C'est `emblemSize` qui règle la taille.
     //
     // C'est un booléen plutôt qu'un panneau transparent : un panneau
     // transparent laisserait son filet, et le filet est ce qui se voit en
     // premier.
     bool panelled = true;
 
-    // La taille de l'emblème d'une figure, et de celui du joker, en facteur
-    // de celle qu'ils ont par défaut.
+    // La taille de l'emblème d'une figure -- couronne, diadème, fleur de lis,
+    // bonnet du joker, symbole de l'as -- en facteur de celle qu'il a par
+    // défaut.
     //
     // Un facteur et non une mesure : l'emblème est inscrit dans un carré
     // déduit de la carte, et les cartes sont rendues à la hauteur qu'on
     // demande. La valeur est bornée au dessin, entre `kEmblemSmallest` et
     // `kEmblemLargest`.
     qreal emblemSize = 1.0;
+
+    // Les grands motifs ont-ils l'aspect du verre ?
+    //
+    // Il s'agit de l'emblème des figures, seuls motifs d'une carte assez
+    // grands pour qu'un dégradé s'y lise. Ils sont alors remplis d'un dégradé
+    // au lieu d'un aplat — clair en haut, sombre juste sous le milieu, et une lumière
+    // renvoyée par le bas.
+    //
+    // Les symboles des cartes de deux à dix restent plats, et ceux des coins
+    // avec eux : à leur taille, la rampe ne produirait qu'une salissure. Les
+    // traits évidés d'un emblème restent plats également : ils représentent
+    // un creux, et un creux ne renvoie pas la lumière de la surface qui
+    // l'entoure.
+    bool glassy = false;
 
     // Les couleurs qu'une palette donne à une carte. C'est le style des
     // cartes que `pdcartes-rami` dessine sur son tapis.
