@@ -271,10 +271,12 @@ inline constexpr qreal kEmblemLargest = 1.80;
 
 // Bornes de `CardStyle::panelWidth` et `CardStyle::panelHeight`. En dessous,
 // le panneau n'est plus qu'une plaque au milieu du dessin qu'il devait
-// porter ; au-dessus, il occupe toute la marge du papier et le facteur ne
-// produit plus rien.
+// porter ; au-dessus, il occupe la carte entière et le facteur ne produit
+// plus rien.
 inline constexpr qreal kPanelSmallest = 0.50;
-inline constexpr qreal kPanelLargest = 1.40;
+// Deux cents pour cent : il en faut cent quatre-vingt-dix au plus étroit des
+// panneaux, celui des figures, pour couvrir toute la largeur de la carte.
+inline constexpr qreal kPanelLargest = 2.00;
 
 // Retourne la police du peintre réinitialisée.
 //
@@ -318,6 +320,11 @@ void drawSuitPip(QPainter *painter, const QRectF &box, int suit, const QColor &i
 // panneau.
 QRectF cardPanelBox(const QRectF &box, int rank, int suit, const CardStyle &style);
 
+// Le même, pour un dos : le rectangle qu'occupe son treillis, et où son image
+// vient se poser. Un dos est une carte comme les autres, à ceci près que son
+// panneau ne se retire pas — il n'y aurait plus qu'un rectangle de couleur.
+QRectF cardBackPanelBox(const QRectF &box, const CardStyle &style);
+
 // Jusqu'où l'image d'un panneau peut être décalée, par axe et en part du
 // panneau : exactement ce qu'il faut pour amener chacun de ses bords sur le
 // bord correspondant du panneau, et pas davantage.
@@ -345,4 +352,7 @@ void drawDefaultFace(QPainter *painter, const QRectF &box, int rank, int suit,
 
 // Dessine le dos d'une carte : une marge encadrant un treillis, disposition
 // traditionnelle.
-void drawDefaultBack(QPainter *painter, const QRectF &box, const CardStyle &style);
+// `art` est l'image qui remplace le treillis ; vide, le dos porte son
+// treillis.
+void drawDefaultBack(QPainter *painter, const QRectF &box, const CardStyle &style,
+                     const PanelArt &art = {});

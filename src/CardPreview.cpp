@@ -30,7 +30,10 @@ void CardStylePreview::onPlaced(std::function<void(const PanelArt &, bool settle
 }
 
 QRectF CardStylePreview::panelHere() const {
-    if (!m_compact || m_cardBox.isEmpty() || m_key < 0) return {};
+    if (!m_compact || m_cardBox.isEmpty()) return {};
+    // Un dos est une carte comme les autres : son panneau est le rectangle
+    // qu'occupe son treillis, et le geste s'y fait de la même façon.
+    if (m_key < 0) return cardBackPanelBox(m_cardBox, m_recipe.style);
     return cardPanelBox(m_cardBox, CardSet::rankOfSlot(m_key), CardSet::suitOfSlot(m_key),
                         m_recipe.style);
 }
@@ -152,7 +155,7 @@ void CardStylePreview::paintEvent(QPaintEvent *event) {
         // donne le panneau, et donc le cadre du geste.
         if (m_compact) m_cardBox = box;
         if (key < 0) {
-            drawDefaultBack(&painter, box, m_recipe.style);
+            drawDefaultBack(&painter, box, m_recipe.style, m_recipe.panelArt);
         } else {
             drawDefaultFace(&painter, box, CardSet::rankOfSlot(key), CardSet::suitOfSlot(key),
                             m_recipe.style, m_recipe.panelArt);

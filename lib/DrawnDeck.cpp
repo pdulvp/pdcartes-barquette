@@ -29,7 +29,7 @@ QByteArray renderOne(int rank, int suit, bool back, const DrawnRecipe &how) {
     // et sans cette marge sa moitié extérieure tomberait hors de l'image.
     const QRectF box(0.5, 0.5, image.width() - 1.0, image.height() - 1.0);
     if (back) {
-        drawDefaultBack(&painter, box, how.style);
+        drawDefaultBack(&painter, box, how.style, how.panelArt);
     } else {
         drawDefaultFace(&painter, box, rank, suit, how.style, how.panelArt);
     }

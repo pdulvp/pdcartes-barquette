@@ -129,6 +129,17 @@ la carte y tient en cent soixante-cinq pixels. Il suffit à une retouche ;
 pour placer vraiment, <b>Placer l'image…</b> montre la même carte à quatre
 cents pixels, et la carte se refait à mesure derrière la fenêtre.</p>
 
+<p>Un <b>dos</b> est une carte comme les autres : son panneau est le
+rectangle qu'occupe son treillis, et une image posée dessus vient à la place
+de ce treillis, se place et se redimensionne de la même façon. Un dos dessiné
+est alors redessiné à la taille des autres cartes du jeu, au lieu de garder
+les dimensions du fichier fourni.</p>
+
+<p><b>Taille du panneau</b> va jusqu'à deux cents pour cent, ce qui suffit au
+plus étroit des panneaux pour couvrir la carte d'un bord à l'autre : une image
+peut donc occuper toute la carte, sans bord de papier autour. L'arrondi du
+panneau rejoint alors celui de la carte.</p>
+
 <p>L'image appartient à la carte où elle a été posée : <b>Appliquer à tout</b>,
 <b>Garder pour la suite</b> et <b>Tout remplir</b> posent des couleurs, et
 chaque carte y garde la sienne. Une carte sans panneau — une carte de deux à

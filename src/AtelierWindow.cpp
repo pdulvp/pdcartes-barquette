@@ -1005,7 +1005,7 @@ void AtelierWindow::placeInto(int target, int trayIndex) {
     // son filet, son coin et ce qu'elle porte. Une carte sans panneau, et une
     // case qui n'est pas dessinée, reçoivent l'image à la place de la carte
     // entière, comme auparavant.
-    if (!FaceGrid::isBack(target) && m_set.hasRecipe(target)) {
+    if (m_set.hasRecipe(target)) {
         DrawnRecipe how = m_set.recipe(target);
         PanelArt placed;
         placed.bytes = art.bytes;
@@ -1083,16 +1083,17 @@ DrawnRecipe AtelierWindow::recipeFor(int key, DrawnRecipe how) const {
 }
 
 bool AtelierWindow::cardCarriesPanel(int slot, const DrawnRecipe &how) const {
-    if (FaceGrid::isBack(slot) || slot < 0 || slot >= CardSet::kSlots) return false;
+    const QSize paper = drawnCardSize(how.height);
+    const QRectF probe{QPointF(), QSizeF(paper)};
+    // Un dos est une carte comme les autres, et son panneau ne se retire pas.
+    if (FaceGrid::isBack(slot)) return !cardBackPanelBox(probe, how.style).isEmpty();
+    if (slot < 0 || slot >= CardSet::kSlots) return false;
     // La case du joker est l'excuse dans un tarot, laquelle prend la couleur
     // des atouts : c'est ainsi que le dessin la reconnaît.
     const int suit = (slot == CardSet::kJokerSlot && m_set.kind == DeckKind::Tarot)
                          ? CardSet::kTrumpSuit
                          : CardSet::suitOfSlot(slot);
-    const QSize size = drawnCardSize(how.height);
-    return !cardPanelBox(QRectF(QPointF(), QSizeF(size)), CardSet::rankOfSlot(slot), suit,
-                         how.style)
-                .isEmpty();
+    return !cardPanelBox(probe, CardSet::rankOfSlot(slot), suit, how.style).isEmpty();
 }
 
 void AtelierWindow::placePanelArt() {

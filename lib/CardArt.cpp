@@ -282,7 +282,10 @@ QRectF innerMarginOf(const QRectF &box) {
 // la marge : un panneau ne déborde pas de la carte, quel que soit le facteur
 // qu'on lui donne.
 QRectF panelSized(const QRectF &base, const QRectF &box, const CardStyle &style) {
-    const QRectF limit = innerMarginOf(box);
+    // La carte entière, et non sa marge : un panneau porté à sa plus grande
+    // taille prend la carte d'un bord à l'autre, sans laisser de papier
+    // autour.
+    const QRectF limit = box;
     const qreal wide = std::clamp(style.panelWidth, kPanelSmallest, kPanelLargest);
     const qreal tall = std::clamp(style.panelHeight, kPanelSmallest, kPanelLargest);
     QRectF out(0.0, 0.0, std::min(base.width() * wide, limit.width()),
@@ -334,12 +337,39 @@ QRectF pipPanelBox(const QRectF &box, const CardStyle &style) {
     return panelSized(pipGridOf(box).adjusted(-bezel, -bezel, bezel, bezel), box, style);
 }
 
+// Le panneau d'un dos : le rectangle qu'occupe son treillis. La marge est
+// prise sur la largeur dans les quatre sens, de sorte qu'elle soit la même en
+// haut et sur le côté.
+QRectF backPanelBox(const QRectF &box, const CardStyle &style) {
+    return panelSized(box.adjusted(box.width() * 0.085, box.width() * 0.085,
+                                   -box.width() * 0.085, -box.width() * 0.085),
+                      box, style);
+}
+
 // Le panneau du joker : un peu moins haut que celui des figures, le mot
 // « Joker » s'écrivant en dessous.
 QRectF jokerPanelBox(const QRectF &box, const CardStyle &style) {
     return panelSized(QRectF(box.left() + box.width() * 0.235, box.top() + box.height() * 0.150,
                              box.width() * 0.53, box.height() * 0.640),
                       box, style);
+}
+
+// L'arrondi d'un panneau.
+//
+// `own` est celui qu'il a en propre — marqué pour le panneau d'une face,
+// discret pour celui d'un dos. Il le garde tant qu'il occupe moins de 90 pour
+// cent de la carte, puis rejoint celui de la carte à mesure qu'il la remplit.
+//
+// Sans cela, un panneau porté à la taille de la carte laisserait quatre
+// éclats de papier dans les coins s'il est le plus arrondi des deux, ou
+// déborderait du bord arrondi de la carte s'il l'est le moins. Aucun panneau
+// d'un jeu déjà enregistré n'atteint le seuil : le plus grand, celui du dos,
+// occupe 83 pour cent de la carte.
+qreal panelRoundOf(const QRectF &panel, const QRectF &card, qreal own) {
+    if (card.isEmpty()) return own;
+    const qreal fill = std::min(panel.width() / card.width(), panel.height() / card.height());
+    const qreal part = std::clamp((fill - 0.90) / 0.10, 0.0, 1.0);
+    return own + (cardCornerFor(card) - own) * part;
 }
 
 // Un panneau est-il assez grand pour se lire ? En dessous, la carte montre
@@ -397,9 +427,9 @@ void paintPip(QPainter *painter, const QPointF &middle, qreal span, int suit,
 // Les trois figures et le joker le portent, et le portent identique : ce sont
 // les quatre cartes d'un jeu qui ne montrent pas de symboles, et elles se
 // reconnaissent d'autant mieux qu'elles se ressemblent.
-void paintEmblemPanel(QPainter *painter, const QRectF &box, const QColor &ink,
-                      const QColor &panel, const PanelArt &art = {}) {
-    const qreal round = std::min(box.width(), box.height()) * 0.11;
+void paintEmblemPanel(QPainter *painter, const QRectF &box, const QRectF &card,
+                      const QColor &ink, const QColor &panel, const PanelArt &art = {}) {
+    const qreal round = panelRoundOf(box, card, std::min(box.width(), box.height()) * 0.11);
     painter->save();
     painter->setPen(QPen(blendColours(panel, ink, 0.26), std::max(1.0, box.width() * 0.020)));
     painter->setBrush(panel);
@@ -431,9 +461,9 @@ void paintEmblemPanel(QPainter *painter, const QRectF &box, const QColor &ink,
 // du diadème, la ceinture de la fleur de lis — sont tracés dans la couleur du
 // panneau, et se découpent donc sur le beige et non sur le blanc. Lorsque le
 // panneau n'est pas tracé, c'est sur le papier qu'ils se découpent.
-void paintCourtMark(QPainter *painter, const QRectF &box, int rank, const QColor &ink,
-                    const CardStyle &style, const PanelArt &art) {
-    if (style.panelled) paintEmblemPanel(painter, box, ink, style.panel, art);
+void paintCourtMark(QPainter *painter, const QRectF &box, const QRectF &card, int rank,
+                    const QColor &ink, const CardStyle &style, const PanelArt &art) {
+    if (style.panelled) paintEmblemPanel(painter, box, card, ink, style.panel, art);
     // L'emblème effacé, il ne reste que le panneau et ce qu'il porte.
     if (!style.emblemShown) return;
     const QColor hollow = style.panelled ? style.panel : style.paper;
@@ -711,7 +741,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         const QString roman = CardSet::romanNumber(rank);
         const QRectF panel = emblemPanelBox(box, style);
         if (style.panelled && panelFits(panel)) {
-            paintEmblemPanel(painter, panel, ink, style.panel, art);
+            paintEmblemPanel(painter, panel, box, ink, style.panel, art);
         }
         if (panelFits(panel) && style.emblemShown) {
             const QRectF field = emblemFieldOf(panel);
@@ -749,7 +779,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         // des figures, le mot « Joker » s'écrivant en dessous.
         const QRectF panel = jokerPanelBox(box, style);
         if (panelFits(panel)) {
-            if (style.panelled) paintEmblemPanel(painter, panel, ink, style.panel, art);
+            if (style.panelled) paintEmblemPanel(painter, panel, box, ink, style.panel, art);
             if (style.emblemShown) {
                 paintJoker(painter, panel.adjusted(panel.width() * 0.10, panel.height() * 0.08,
                                                    -panel.width() * 0.10, -panel.height() * 0.08),
@@ -783,7 +813,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         // étroite, mais dans leur propre rectangle.
         const QRectF figure = emblemPanelBox(box, style);
         if (panelFits(figure)) {
-            paintCourtMark(painter, figure, rank, ink, style, art);
+            paintCourtMark(painter, figure, box, rank, ink, style, art);
         } else if (style.emblemShown) {
             drawPip(painter, box.center(), std::min(box.width(), box.height()) * 0.42, suit, ink);
         }
@@ -802,7 +832,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         const qreal size = std::clamp(style.emblemSize, kEmblemSmallest, kEmblemLargest);
         const QRectF panel = emblemPanelBox(box, style);
         if (panelFits(panel)) {
-            if (style.panelled) paintEmblemPanel(painter, panel, ink, style.panel, art);
+            if (style.panelled) paintEmblemPanel(painter, panel, box, ink, style.panel, art);
             if (style.emblemShown) {
                 const QRectF field = emblemFieldOf(panel);
                 paintPip(painter, field.center(),
@@ -843,7 +873,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
             // ce soit une assise et non un fond rempli à ras.
             if (style.panelled && style.panelOnPips) {
                 const QRectF panel = pipPanelBox(box, style);
-                if (panelFits(panel)) paintEmblemPanel(painter, panel, ink, style.panel, art);
+                if (panelFits(panel)) paintEmblemPanel(painter, panel, box, ink, style.panel, art);
             }
             if (style.pipsShown) {
                 for (const QPointF &at : layout) {
@@ -965,6 +995,12 @@ bool PanelArt::decode() {
     return !image.isNull();
 }
 
+QRectF cardBackPanelBox(const QRectF &box, const CardStyle &style) {
+    if (box.width() < 3 || box.height() < 5) return {};
+    const QRectF panel = backPanelBox(box, style);
+    return panelFits(panel) ? panel : QRectF();
+}
+
 QRectF cardPanelBox(const QRectF &box, int rank, int suit, const CardStyle &style) {
     if (box.width() < 3 || box.height() < 5 || !style.panelled) return {};
     QRectF panel;
@@ -1008,7 +1044,8 @@ void drawDefaultFace(QPainter *painter, const QRectF &box, int rank, int suit,
     painter->restore();
 }
 
-void drawDefaultBack(QPainter *painter, const QRectF &box, const CardStyle &style) {
+void drawDefaultBack(QPainter *painter, const QRectF &box, const CardStyle &style,
+                     const PanelArt &art) {
     if (box.width() < 3 || box.height() < 5) return;
     painter->save();
     painter->setRenderHint(QPainter::Antialiasing, true);
@@ -1020,28 +1057,46 @@ void drawDefaultBack(QPainter *painter, const QRectF &box, const CardStyle &styl
     painter->setPen(Qt::NoPen);
     painter->fillPath(shape, style.back);
 
-    // Le dos : une marge encadrant un treillis, disposition traditionnelle du
-    // dos d'une carte à jouer.
-    const QRectF panel = box.adjusted(box.width() * 0.085, box.width() * 0.085,
-                                      -box.width() * 0.085, -box.width() * 0.085);
-    painter->setPen(QPen(blendColours(style.back, QColor(Qt::white), 0.45), 1.0));
-    painter->setBrush(Qt::NoBrush);
+    // Le dos est une carte comme les autres : un papier, et un panneau posé
+    // dessus. Son panneau est le rectangle qu'occupe le treillis, et les deux
+    // facteurs de taille valent pour lui comme pour celui d'une face.
+    const QRectF panel = backPanelBox(box, style);
     if (panel.width() > 6 && panel.height() > 6) {
-        painter->drawRoundedRect(panel, corner * 0.55, corner * 0.55);
-
-        painter->save();
+        const qreal round = panelRoundOf(panel, box, corner * 0.55);
         QPainterPath clip;
-        clip.addRoundedRect(panel, corner * 0.55, corner * 0.55);
-        painter->setClipPath(clip);
-        painter->setPen(QPen(style.backInk, 1.0));
-        const qreal pitch = std::max(4.0, box.width() * 0.17);
-        for (qreal at = -panel.height(); at < panel.width() + panel.height(); at += pitch) {
-            painter->drawLine(QPointF(panel.left() + at, panel.top()),
-                              QPointF(panel.left() + at + panel.height(), panel.bottom()));
-            painter->drawLine(QPointF(panel.left() + at, panel.bottom()),
-                              QPointF(panel.left() + at + panel.height(), panel.top()));
+        clip.addRoundedRect(panel, round, round);
+        painter->setBrush(Qt::NoBrush);
+
+        if (art.isEmpty()) {
+            // La marge encadrant un treillis, disposition traditionnelle du
+            // dos d'une carte à jouer.
+            painter->setPen(QPen(blendColours(style.back, QColor(Qt::white), 0.45), 1.0));
+            painter->drawRoundedRect(panel, round, round);
+
+            painter->save();
+            painter->setClipPath(clip);
+            painter->setPen(QPen(style.backInk, 1.0));
+            const qreal pitch = std::max(4.0, box.width() * 0.17);
+            for (qreal at = -panel.height(); at < panel.width() + panel.height(); at += pitch) {
+                painter->drawLine(QPointF(panel.left() + at, panel.top()),
+                                  QPointF(panel.left() + at + panel.height(), panel.bottom()));
+                painter->drawLine(QPointF(panel.left() + at, panel.bottom()),
+                                  QPointF(panel.left() + at + panel.height(), panel.top()));
+            }
+            painter->restore();
+        } else {
+            // L'image vient à la place du treillis : le treillis est le fond
+            // du panneau d'un dos, comme le beige est celui d'une face, et
+            // c'est le fond que l'image remplace. Le tracer par-dessus une
+            // photographie la salirait sans rien dire de plus.
+            painter->save();
+            painter->setClipPath(clip);
+            painter->setRenderHint(QPainter::SmoothPixmapTransform, true);
+            painter->drawImage(panelArtBox(panel, art), art.image);
+            painter->restore();
+            painter->setPen(QPen(blendColours(style.back, QColor(Qt::white), 0.45), 1.0));
+            painter->drawRoundedRect(panel, round, round);
         }
-        painter->restore();
     }
     painter->restore();
 }
