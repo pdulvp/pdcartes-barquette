@@ -114,6 +114,8 @@ porte. L'aperçu de la section <b>La carte dessinée</b> sert alors à la
 placer :</p>
 
 <table>
+<tr><th><b>Placer l'image…</b></th><td>ouvre la carte en grand, où le geste
+se fait à l'aise, avec un champ d'échelle chiffré</td></tr>
 <tr><th>glisser dans l'aperçu</th><td>déplace l'image dans le panneau</td></tr>
 <tr><th>molette</th><td>l'agrandit ou la réduit</td></tr>
 <tr><th>double-clic</th><td>la recadre, centrée et recouvrant le panneau au
@@ -121,6 +123,11 @@ plus juste</td></tr>
 <tr><th><b>Retirer l'image</b></th><td>rend au panneau sa couleur de
 fond</td></tr>
 </table>
+
+<p>L'aperçu de la section est petit : il reçoit la hauteur de la section, et
+la carte y tient en cent soixante-cinq pixels. Il suffit à une retouche ;
+pour placer vraiment, <b>Placer l'image…</b> montre la même carte à quatre
+cents pixels, et la carte se refait à mesure derrière la fenêtre.</p>
 
 <p>L'image appartient à la carte où elle a été posée : <b>Appliquer à tout</b>,
 <b>Garder pour la suite</b> et <b>Tout remplir</b> posent des couleurs, et

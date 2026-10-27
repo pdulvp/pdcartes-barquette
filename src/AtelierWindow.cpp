@@ -6,6 +6,7 @@
 #include "DrawnDeck.h"
 #include "FaceGrid.h"
 #include "HelpDialog.h"
+#include "PlaceArtDialog.h"
 #include "ImageJoin.h"
 #include "Palette.h"
 #include "SourceTray.h"
@@ -332,10 +333,14 @@ QWidget *AtelierWindow::buildCardProperties(QWidget *parent) {
     auto *adopt = panelButton(m_cardProps, tr("Garder pour la suite"),
                               tr("Reprendre ces couleurs dans l'onglet « Le jeu dessiné », "
                                  "pour les cartes posées ensuite"));
+    m_placeArt = panelButton(m_cardProps, tr("Placer l'image…"),
+                             tr("Déplacer et redimensionner l'image dans le panneau, la "
+                                "carte montrée en grand"));
     m_dropArt = panelButton(m_cardProps, tr("Retirer l'image"),
                             tr("Rendre au panneau de cette carte sa couleur de fond"));
     side->addWidget(spread);
     side->addWidget(adopt);
+    side->addWidget(m_placeArt);
     side->addWidget(m_dropArt);
     side->addStretch();
     across->addLayout(side);
@@ -343,6 +348,7 @@ QWidget *AtelierWindow::buildCardProperties(QWidget *parent) {
 
     connect(spread, &QPushButton::clicked, this, &AtelierWindow::spreadRecipe);
     connect(adopt, &QPushButton::clicked, this, &AtelierWindow::adoptRecipe);
+    connect(m_placeArt, &QPushButton::clicked, this, &AtelierWindow::placePanelArt);
     connect(m_dropArt, &QPushButton::clicked, this, &AtelierWindow::dropPanelArt);
     connect(m_cardStyle, &CardStyleEditor::edited, this, [this](const DrawnRecipe &how) {
         const int target = m_grid->target();
@@ -1089,6 +1095,27 @@ bool AtelierWindow::cardCarriesPanel(int slot, const DrawnRecipe &how) const {
                 .isEmpty();
 }
 
+void AtelierWindow::placePanelArt() {
+    const int target = m_grid->target();
+    if (!m_set.hasRecipe(target)) return;
+    const DrawnRecipe how = m_set.recipe(target);
+    if (how.panelArt.isEmpty()) return;
+
+    // La carte se refait à mesure, derrière la fenêtre : celle-ci place, et
+    // n'a donc rien à valider.
+    PlaceArtDialog box(how, target, this);
+    connect(&box, &PlaceArtDialog::placed, this, [this, target](const PanelArt &art) {
+        if (!m_set.hasRecipe(target)) return;
+        DrawnRecipe moved = m_set.recipe(target);
+        moved.panelArt = art;
+        placeDrawnInto(target, moved);
+        m_grid->reread();
+        m_cardStyle->setRecipe(moved);
+        noteChange();
+    });
+    box.exec();
+}
+
 void AtelierWindow::dropPanelArt() {
     const int target = m_grid->target();
     if (!m_set.hasRecipe(target)) return;
@@ -1179,7 +1206,9 @@ void AtelierWindow::updateCardProperties() {
     if (!drawn) return;
     m_cardStyle->showCard(target);
     m_cardStyle->setRecipe(m_set.recipe(target));
-    m_dropArt->setEnabled(!m_set.recipe(target).panelArt.isEmpty());
+    const bool placed = !m_set.recipe(target).panelArt.isEmpty();
+    m_placeArt->setEnabled(placed);
+    m_dropArt->setEnabled(placed);
 }
 
 // ---------------------------------------------------------------------------

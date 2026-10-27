@@ -941,14 +941,18 @@ QPointF panelArtReach(const QRectF &panel, const PanelArt &art) {
     if (panel.isEmpty()) return {};
     const QSizeF drawn = panelArtSize(panel, art);
     if (drawn.isEmpty()) return {};
-    // Ce qui dépasse du panneau, de moitié : c'est le décalage qui amène un
-    // bord de l'image sur le bord correspondant du panneau.
+    // L'écart entre l'image et le panneau, de moitié : c'est le décalage qui
+    // amène un bord de l'image sur le bord correspondant du panneau.
+    //
+    // Sa valeur absolue, car la règle vaut dans les deux sens. Une image plus
+    // grande que le panneau se décale jusqu'à ce que son bord arrive sur
+    // celui du panneau, et pas au-delà : on ne découvre donc jamais le beige
+    // derrière une image qui le recouvrait. Une image plus petite se décale
+    // jusqu'à ce que son bord arrive, lui aussi, sur celui du panneau : elle
+    // se pose donc où l'on veut dedans, sans jamais en sortir.
     const qreal across = (drawn.width() / panel.width() - 1.0) / 2.0;
     const qreal down = (drawn.height() / panel.height() - 1.0) / 2.0;
-    // Une image qui ne recouvre pas le panneau n'a rien qui dépasse, et la
-    // règle ci-dessus la clouerait au centre. Une demi-page de jeu lui est
-    // laissée : son centre reste alors dans le panneau.
-    return QPointF(std::max(across, kPanelArtPlay), std::max(down, kPanelArtPlay));
+    return QPointF(std::abs(across), std::abs(down));
 }
 
 bool PanelArt::decode() {

@@ -80,6 +80,7 @@ private:
     // venir ?
     bool cardCarriesPanel(int slot, const DrawnRecipe &how) const;
     void dropPanelArt();
+    void placePanelArt();
     void fillWithDrawn(bool emptyOnly);
     void placeDrawnHere();
     void addDrawnBack();
@@ -106,6 +107,7 @@ private:
     CardStyleEditor *m_drawnStyle = nullptr;
     CardStyleEditor *m_cardStyle = nullptr;
     QWidget *m_cardProps = nullptr;
+    QPushButton *m_placeArt = nullptr;
     QPushButton *m_dropArt = nullptr;
 
     QWidget *m_topBar = nullptr;
