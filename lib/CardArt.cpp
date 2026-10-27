@@ -351,14 +351,22 @@ bool panelFits(const QRectF &panel) {
 // Le rectangle où l'image d'un panneau est posée : recouvrant le panneau au
 // plus juste lorsque l'échelle vaut un, puis portée au facteur demandé et
 // décalée de ce qu'on lui a demandé.
-QRectF panelArtBox(const QRectF &panel, const PanelArt &art) {
+QSizeF panelArtSize(const QRectF &panel, const PanelArt &art) {
     const QSizeF size = art.image.size();
-    if (size.isEmpty()) return panel;
+    if (size.isEmpty()) return {};
     const qreal cover = std::max(panel.width() / size.width(), panel.height() / size.height());
     const qreal factor = cover * std::clamp(art.scale, kPanelArtSmallest, kPanelArtLargest);
-    QRectF out(0.0, 0.0, size.width() * factor, size.height() * factor);
+    return QSizeF(size.width() * factor, size.height() * factor);
+}
+
+QRectF panelArtBox(const QRectF &panel, const PanelArt &art) {
+    const QSizeF drawn = panelArtSize(panel, art);
+    if (drawn.isEmpty()) return panel;
+    const QPointF reach = panelArtReach(panel, art);
+    QRectF out(QPointF(), drawn);
     out.moveCenter(panel.center() +
-                   QPointF(art.offset.x() * panel.width(), art.offset.y() * panel.height()));
+                   QPointF(std::clamp(art.offset.x(), -reach.x(), reach.x()) * panel.width(),
+                           std::clamp(art.offset.y(), -reach.y(), reach.y()) * panel.height()));
     return out;
 }
 
@@ -927,6 +935,20 @@ void drawPip(QPainter *painter, const QPointF &middle, qreal span, int suit, con
 
 void drawSuitPip(QPainter *painter, const QRectF &box, int suit, const QColor &ink) {
     drawPip(painter, box.center(), std::min(box.width(), box.height()), suit, ink);
+}
+
+QPointF panelArtReach(const QRectF &panel, const PanelArt &art) {
+    if (panel.isEmpty()) return {};
+    const QSizeF drawn = panelArtSize(panel, art);
+    if (drawn.isEmpty()) return {};
+    // Ce qui dépasse du panneau, de moitié : c'est le décalage qui amène un
+    // bord de l'image sur le bord correspondant du panneau.
+    const qreal across = (drawn.width() / panel.width() - 1.0) / 2.0;
+    const qreal down = (drawn.height() / panel.height() - 1.0) / 2.0;
+    // Une image qui ne recouvre pas le panneau n'a rien qui dépasse, et la
+    // règle ci-dessus la clouerait au centre. Une demi-page de jeu lui est
+    // laissée : son centre reste alors dans le panneau.
+    return QPointF(std::max(across, kPanelArtPlay), std::max(down, kPanelArtPlay));
 }
 
 bool PanelArt::decode() {

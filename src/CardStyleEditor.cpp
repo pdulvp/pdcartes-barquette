@@ -135,10 +135,15 @@ protected:
         const QRectF panel = panelHere();
         const QPointF moved = event->position() - m_dragFrom;
         // Le décalage est une part du panneau : le même geste donne le même
-        // cadrage, que l'aperçu soit grand ou petit.
+        // cadrage, que l'aperçu soit grand ou petit. Il va jusqu'au bord de
+        // l'image, et pas plus loin : c'est la cartothèque qui dit où, le
+        // dessin bornant de la même façon.
+        const QPointF reach = panelArtReach(panel, m_recipe.panelArt);
         m_recipe.panelArt.offset =
-            QPointF(std::clamp(m_dragOffset.x() + moved.x() / panel.width(), -1.5, 1.5),
-                    std::clamp(m_dragOffset.y() + moved.y() / panel.height(), -1.5, 1.5));
+            QPointF(std::clamp(m_dragOffset.x() + moved.x() / panel.width(), -reach.x(),
+                               reach.x()),
+                    std::clamp(m_dragOffset.y() + moved.y() / panel.height(), -reach.y(),
+                               reach.y()));
         update();
         // Celui qui a posé l'aperçu suit le geste sans le classer : sa copie
         // de la recette doit rester celle qu'on voit, faute de quoi le
@@ -175,6 +180,12 @@ protected:
         m_recipe.panelArt.scale =
             std::clamp(m_recipe.panelArt.scale * std::pow(1.0012, steps), kPanelArtSmallest,
                        kPanelArtLargest);
+        // Réduire l'image réduit ce qui dépasse : le décalage enregistré doit
+        // rester celui qu'on voit.
+        const QPointF reach = panelArtReach(panelHere(), m_recipe.panelArt);
+        m_recipe.panelArt.offset =
+            QPointF(std::clamp(m_recipe.panelArt.offset.x(), -reach.x(), reach.x()),
+                    std::clamp(m_recipe.panelArt.offset.y(), -reach.y(), reach.y()));
         update();
         if (m_placed) m_placed(m_recipe.panelArt, true);
         event->accept();

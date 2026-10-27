@@ -239,6 +239,10 @@ struct PanelArt {
 inline constexpr qreal kPanelArtSmallest = 0.20;
 inline constexpr qreal kPanelArtLargest = 6.00;
 
+// Le jeu laissé à une image plus petite que le panneau, en part de celui-ci.
+// Elle n'a rien qui dépasse, et serait sans cela clouée au centre.
+inline constexpr qreal kPanelArtPlay = 0.50;
+
 // De quoi refaire une carte dessinée : ses couleurs, et la hauteur en pixels
 // à laquelle elle est rendue.
 //
@@ -317,6 +321,18 @@ void drawSuitPip(QPainter *painter, const QRectF &box, int suit, const QColor &i
 // dessin emploie la même, de sorte qu'il n'y ait qu'une définition du
 // panneau.
 QRectF cardPanelBox(const QRectF &box, int rank, int suit, const CardStyle &style);
+
+// Jusqu'où l'image d'un panneau peut être décalée, par axe et en part du
+// panneau : exactement ce qui dépasse de lui, de moitié, c'est-à-dire ce
+// qu'il faut pour amener chacun de ses bords au bord correspondant du
+// panneau — et pas davantage, une image ne se poussant pas hors de vue. Une
+// image plus petite que le panneau garde `kPanelArtPlay`.
+//
+// Le dessin applique cette borne de lui-même : une recette dont le décalage
+// la dépasse est ramenée, plutôt que de montrer un panneau vide. Elle est
+// publiée pour que l'atelier borne le geste de la même façon qu'il sera
+// dessiné.
+QPointF panelArtReach(const QRectF &panel, const PanelArt &art);
 
 // Dessine une carte : le papier, son filet, et ce qu'elle porte.
 //
