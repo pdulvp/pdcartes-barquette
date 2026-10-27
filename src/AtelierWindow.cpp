@@ -332,14 +332,18 @@ QWidget *AtelierWindow::buildCardProperties(QWidget *parent) {
     auto *adopt = panelButton(m_cardProps, tr("Garder pour la suite"),
                               tr("Reprendre ces couleurs dans l'onglet « Le jeu dessiné », "
                                  "pour les cartes posées ensuite"));
+    m_dropArt = panelButton(m_cardProps, tr("Retirer l'image"),
+                            tr("Rendre au panneau de cette carte sa couleur de fond"));
     side->addWidget(spread);
     side->addWidget(adopt);
+    side->addWidget(m_dropArt);
     side->addStretch();
     across->addLayout(side);
     rows->addLayout(across);
 
     connect(spread, &QPushButton::clicked, this, &AtelierWindow::spreadRecipe);
     connect(adopt, &QPushButton::clicked, this, &AtelierWindow::adoptRecipe);
+    connect(m_dropArt, &QPushButton::clicked, this, &AtelierWindow::dropPanelArt);
     connect(m_cardStyle, &CardStyleEditor::edited, this, [this](const DrawnRecipe &how) {
         const int target = m_grid->target();
         if (!m_set.hasRecipe(target)) return;
@@ -990,6 +994,30 @@ void AtelierWindow::placeInto(int target, int trayIndex) {
     art.kind = item->image.kind;
     art.bytes = item->image.bytes;
 
+    // Une image posée sur une carte dessinée qui porte un panneau vient à la
+    // place de la couleur de fond de ce panneau : la carte garde son papier,
+    // son filet, son coin et ce qu'elle porte. Une carte sans panneau, et une
+    // case qui n'est pas dessinée, reçoivent l'image à la place de la carte
+    // entière, comme auparavant.
+    if (!FaceGrid::isBack(target) && m_set.hasRecipe(target)) {
+        DrawnRecipe how = m_set.recipe(target);
+        PanelArt placed;
+        placed.bytes = art.bytes;
+        placed.kind = art.kind;
+        // Une image illisible — un SVG en l'absence du greffon qui le lit —
+        // ne saurait être placée : elle remplace alors la carte, où le même
+        // greffon manquera, mais où le jeu la gardera telle quelle.
+        if (cardCarriesPanel(target, how) && placed.decode()) {
+            how.panelArt = placed;
+            placeDrawnInto(target, how);
+            m_tray->markUsed(trayIndex, true);
+            m_grid->reread();
+            updateCardProperties();
+            noteChange();
+            return;
+        }
+    }
+
     if (FaceGrid::isBack(target)) {
         m_set.setBack(FaceGrid::backOfTarget(target), art);
     } else {
@@ -1043,6 +1071,36 @@ void AtelierWindow::addBackFromTray() {
 // ---------------------------------------------------------------------------
 // Le jeu dessiné.
 
+DrawnRecipe AtelierWindow::recipeFor(int key, DrawnRecipe how) const {
+    how.panelArt = m_set.hasRecipe(key) ? m_set.recipe(key).panelArt : PanelArt();
+    return how;
+}
+
+bool AtelierWindow::cardCarriesPanel(int slot, const DrawnRecipe &how) const {
+    if (FaceGrid::isBack(slot) || slot < 0 || slot >= CardSet::kSlots) return false;
+    // La case du joker est l'excuse dans un tarot, laquelle prend la couleur
+    // des atouts : c'est ainsi que le dessin la reconnaît.
+    const int suit = (slot == CardSet::kJokerSlot && m_set.kind == DeckKind::Tarot)
+                         ? CardSet::kTrumpSuit
+                         : CardSet::suitOfSlot(slot);
+    const QSize size = drawnCardSize(how.height);
+    return !cardPanelBox(QRectF(QPointF(), QSizeF(size)), CardSet::rankOfSlot(slot), suit,
+                         how.style)
+                .isEmpty();
+}
+
+void AtelierWindow::dropPanelArt() {
+    const int target = m_grid->target();
+    if (!m_set.hasRecipe(target)) return;
+    DrawnRecipe how = m_set.recipe(target);
+    if (how.panelArt.isEmpty()) return;
+    how.panelArt = PanelArt();
+    placeDrawnInto(target, how);
+    m_grid->reread();
+    updateCardProperties();
+    noteChange();
+}
+
 void AtelierWindow::placeDrawnInto(int target, const DrawnRecipe &how) {
     if (FaceGrid::isBack(target)) {
         m_set.setDrawnBack(FaceGrid::backOfTarget(target), drawnBackArt(how), how);
@@ -1060,7 +1118,8 @@ void AtelierWindow::fillWithDrawn(bool emptyOnly) {
     QApplication::setOverrideCursor(Qt::WaitCursor);
     for (const int slot : CardSet::slotsOf(m_set.kind)) {
         if (emptyOnly && m_set.hasFace(slot)) continue;
-        m_set.setDrawnFace(slot, drawnFaceArt(slot, how, m_set.kind), how);
+        const DrawnRecipe mine = recipeFor(slot, how);
+        m_set.setDrawnFace(slot, drawnFaceArt(slot, mine, m_set.kind), mine);
     }
     // Un jeu a besoin d'un dos. « Remplir les cases vides » n'en ajoute un
     // que s'il n'y en a aucun ; « Tout remplir » refait le premier.
@@ -1077,7 +1136,7 @@ void AtelierWindow::fillWithDrawn(bool emptyOnly) {
 
 void AtelierWindow::placeDrawnHere() {
     const int target = m_grid->target();
-    placeDrawnInto(target, m_drawnStyle->recipe());
+    placeDrawnInto(target, recipeFor(target, m_drawnStyle->recipe()));
     m_grid->reread();
     // On avance à la case vide suivante, comme après une image posée.
     if (!FaceGrid::isBack(target)) m_grid->setTarget(m_grid->nextEmptyFace(target));
@@ -1097,7 +1156,7 @@ void AtelierWindow::spreadRecipe() {
     const DrawnRecipe how = m_cardStyle->recipe();
 
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    for (const int key : drawn) placeDrawnInto(key, how);
+    for (const int key : drawn) placeDrawnInto(key, recipeFor(key, how));
     QApplication::restoreOverrideCursor();
 
     m_grid->reread();
@@ -1105,7 +1164,11 @@ void AtelierWindow::spreadRecipe() {
 }
 
 void AtelierWindow::adoptRecipe() {
-    m_drawnStyle->setRecipe(m_cardStyle->recipe());
+    // Les couleurs de cette carte, et non son image : l'onglet du jeu dessiné
+    // pose son style sur cinquante-trois cartes à la fois.
+    DrawnRecipe how = m_cardStyle->recipe();
+    how.panelArt = PanelArt();
+    m_drawnStyle->setRecipe(how);
     m_sources->setCurrentIndex(1);
 }
 
@@ -1116,6 +1179,7 @@ void AtelierWindow::updateCardProperties() {
     if (!drawn) return;
     m_cardStyle->showCard(target);
     m_cardStyle->setRecipe(m_set.recipe(target));
+    m_dropArt->setEnabled(!m_set.recipe(target).panelArt.isEmpty());
 }
 
 // ---------------------------------------------------------------------------

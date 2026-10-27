@@ -44,11 +44,13 @@ const char kRecipeTag[] = "recettes";
 //     4  la convention qui donne les lettres du coin
 //     5  le panneau sous les symboles des cartes de deux à dix, et sa largeur
 //        et sa hauteur
+//     6  l'image posée dans le panneau, et sa place dedans
 //
 // Une recette plus ancienne garde donc les valeurs d'origine des champs
-// qu'elle n'a pas : son panneau derrière les seules figures et à sa taille,
-// un emblème à sa taille, un emblème plat et les lettres françaises.
-constexpr qint32 kRecipeVersion = 5;
+// qu'elle n'a pas : son panneau derrière les seules figures, à sa taille et de
+// sa couleur, un emblème à sa taille, un emblème plat et les lettres
+// françaises.
+constexpr qint32 kRecipeVersion = 6;
 
 // La taille d'une image, lue dans son en-tête : il n'est pas nécessaire de
 // décoder l'image entière pour connaître ses dimensions. Nulle si le type
@@ -564,6 +566,12 @@ bool CardSet::save(const QString &path, QString *why) const {
                 out << qint32(how.style.letters);
                 out << how.style.panelOnPips << qreal(how.style.panelWidth)
                     << qreal(how.style.panelHeight);
+                // L'image du panneau est écrite telle qu'elle a été fournie,
+                // et non le rendu qu'on en fait : un jeu rouvert doit pouvoir
+                // la replacer, ce qu'une image déjà rognée ne permettrait
+                // plus.
+                out << how.panelArt.bytes << how.panelArt.kind << qreal(how.panelArt.offset.x())
+                    << qreal(how.panelArt.offset.y()) << qreal(how.panelArt.scale);
             }
         }
     }
@@ -736,6 +744,17 @@ bool CardSet::load(const QString &path, QString *why) {
                     in >> how.style.panelOnPips >> wide >> tall;
                     how.style.panelWidth = wide > 0.0 ? wide : 1.0;
                     how.style.panelHeight = tall > 0.0 ? tall : 1.0;
+                }
+                if (blockVersion >= 6) {
+                    qreal across = 0.0;
+                    qreal down = 0.0;
+                    qreal zoom = 1.0;
+                    in >> how.panelArt.bytes >> how.panelArt.kind >> across >> down >> zoom;
+                    how.panelArt.offset = QPointF(across, down);
+                    how.panelArt.scale = zoom > 0.0 ? zoom : 1.0;
+                    // Une image illisible — un SVG sans son greffon — laisse
+                    // le panneau à sa couleur plutôt que de perdre la carte.
+                    if (!how.panelArt.bytes.isEmpty()) how.panelArt.decode();
                 }
                 if (in.status() != QDataStream::Ok) break;
                 how.height = height > 0 ? height : kDrawnHeight;

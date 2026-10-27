@@ -31,7 +31,7 @@ QByteArray renderOne(int rank, int suit, bool back, const DrawnRecipe &how) {
     if (back) {
         drawDefaultBack(&painter, box, how.style);
     } else {
-        drawDefaultFace(&painter, box, rank, suit, how.style);
+        drawDefaultFace(&painter, box, rank, suit, how.style, how.panelArt);
     }
     painter.end();
 

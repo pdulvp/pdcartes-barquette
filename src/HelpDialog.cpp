@@ -107,6 +107,27 @@ case vide suivante : placer cinquante-trois images demande donc peu
 d'attention. Les images déjà placées portent une pastille, afin de voir d'un
 coup d'œil ce qui reste à faire.</p>
 
+<p>Une image posée sur une <b>carte dessinée qui porte un panneau</b> ne
+remplace pas la carte : elle vient à la place de la couleur de fond du
+panneau, et la carte garde son papier, son filet, son coin et ce qu'elle
+porte. L'aperçu de la section <b>La carte dessinée</b> sert alors à la
+placer :</p>
+
+<table>
+<tr><th>glisser dans l'aperçu</th><td>déplace l'image dans le panneau</td></tr>
+<tr><th>molette</th><td>l'agrandit ou la réduit</td></tr>
+<tr><th>double-clic</th><td>la recadre, centrée et recouvrant le panneau au
+plus juste</td></tr>
+<tr><th><b>Retirer l'image</b></th><td>rend au panneau sa couleur de
+fond</td></tr>
+</table>
+
+<p>L'image appartient à la carte où elle a été posée : <b>Appliquer à tout</b>,
+<b>Garder pour la suite</b> et <b>Tout remplir</b> posent des couleurs, et
+chaque carte y garde la sienne. Une carte sans panneau — une carte de deux à
+dix lorsque <b>Sous les symboles</b> est décoché, ou une case qui n'est pas
+dessinée — reçoit l'image à la place de la carte entière, comme toujours.</p>
+
 <h1>Le jeu dessiné</h1>
 
 <p>L'onglet <b>Le jeu dessiné</b> ne demande aucun fichier : les cartes y sont

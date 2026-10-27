@@ -2,7 +2,10 @@
 
 #include "Palette.h"
 
+#include <QByteArray>
 #include <QColor>
+#include <QImage>
+#include <QPointF>
 #include <QRectF>
 #include <QString>
 
@@ -166,6 +169,53 @@ struct CardStyle {
     bool operator!=(const CardStyle &other) const { return !(*this == other); }
 };
 
+// L'image posée dans le panneau d'une carte, et sa place à l'intérieur.
+//
+// Elle vient à la place de la couleur de fond du panneau, et rien de plus :
+// le filet du panneau, l'emblème ou les symboles de la carte, et le coin, se
+// tracent par-dessus. Elle est rognée à l'arrondi du panneau.
+//
+// L'image est portée deux fois : telle qu'on l'a fournie, puisque c'est ainsi
+// qu'elle est enregistrée, et décodée, puisque c'est ainsi qu'elle se dessine.
+// Les deux sont des objets partagés : copier une recette ne copie pas les
+// pixels.
+struct PanelArt {
+    QByteArray bytes;  // l'image telle qu'elle a été fournie
+    QByteArray kind;   // son type : « png », « svg »...
+    QImage image;      // la même, décodée
+
+    // Le décalage du centre de l'image par rapport à celui du panneau, en
+    // part de la largeur et de la hauteur de ce dernier, et le facteur
+    // d'échelle, lequel vaut un lorsque l'image recouvre le panneau au plus
+    // juste.
+    //
+    // Des parts et un facteur, et non des pixels : une carte est rendue à la
+    // hauteur qu'on demande, et le cadrage doit valoir d'un rendu à l'autre
+    // comme d'une image fournie à l'autre.
+    QPointF offset;
+    qreal scale = 1.0;
+
+    bool isEmpty() const { return bytes.isEmpty() || image.isNull(); }
+
+    // Remplit `image` à partir de `bytes`. Faux si l'image est illisible —
+    // un SVG, par exemple, en l'absence du greffon qui le lit.
+    bool decode();
+
+    // L'égalité ne regarde pas les pixels : deux recettes qui portent les
+    // mêmes octets portent la même image.
+    bool operator==(const PanelArt &other) const {
+        return bytes == other.bytes && kind == other.kind && offset == other.offset &&
+               qFuzzyCompare(scale, other.scale);
+    }
+    bool operator!=(const PanelArt &other) const { return !(*this == other); }
+};
+
+// Bornes du facteur d'échelle d'une image de panneau. En dessous, l'image
+// n'est plus qu'une vignette au milieu du panneau ; au-dessus, on n'en voit
+// plus qu'un détail.
+inline constexpr qreal kPanelArtSmallest = 0.20;
+inline constexpr qreal kPanelArtLargest = 6.00;
+
 // De quoi refaire une carte dessinée : ses couleurs, et la hauteur en pixels
 // à laquelle elle est rendue.
 //
@@ -176,8 +226,13 @@ struct DrawnRecipe {
     CardStyle style;
     int height = 420;  // hauteur de rendu, en pixels
 
+    // L'image du panneau appartient à la carte, et non au style : un style se
+    // pose sur cinquante-trois cartes à la fois, une image sur une seule.
+    // C'est pourquoi elle est ici et non dans `CardStyle`.
+    PanelArt panelArt;
+
     bool operator==(const DrawnRecipe &other) const {
-        return height == other.height && style == other.style;
+        return height == other.height && style == other.style && panelArt == other.panelArt;
     }
     bool operator!=(const DrawnRecipe &other) const { return !(*this == other); }
 };
@@ -228,13 +283,27 @@ void drawPip(QPainter *painter, const QPointF &middle, qreal span, int suit, con
 // plaque.
 void drawSuitPip(QPainter *painter, const QRectF &box, int suit, const QColor &ink);
 
+// Le rectangle du panneau d'une carte posée dans `box`, ou un rectangle nul
+// lorsque la carte n'en porte pas : panneau retiré, carte de deux à dix sans
+// panneau sous les symboles, ou carte trop petite pour qu'un panneau s'y
+// lise.
+//
+// La fonction est publiée parce que l'atelier en a besoin pour placer une
+// image dans le panneau : il faut savoir où ce dernier se trouve pour y
+// rogner l'image et pour convertir un mouvement de souris en décalage. Le
+// dessin emploie la même, de sorte qu'il n'y ait qu'une définition du
+// panneau.
+QRectF cardPanelBox(const QRectF &box, int rank, int suit, const CardStyle &style);
+
 // Dessine une carte : le papier, son filet, et ce qu'elle porte.
 //
 // `rank` va de 1 (l'as) à 13 (le roi), zéro désignant le joker ; `suit` de 0
 // à 3 dans l'ordre pique, cœur, carreau, trèfle. C'est la numérotation de
 // `CardSet::slotFor()`.
+// `art` est l'image qui remplace la couleur de fond du panneau ; vide, le
+// panneau garde sa couleur.
 void drawDefaultFace(QPainter *painter, const QRectF &box, int rank, int suit,
-                     const CardStyle &style);
+                     const CardStyle &style, const PanelArt &art = {});
 
 // Dessine le dos d'une carte : une marge encadrant un treillis, disposition
 // traditionnelle.

@@ -9,6 +9,7 @@
 #include <QString>
 
 class CardStyleEditor;
+class QPushButton;
 class FaceGrid;
 class QCheckBox;
 class QComboBox;
@@ -72,6 +73,13 @@ private:
     // Le jeu dessiné : on le pose dans les cases, et on retouche après coup
     // les couleurs de ce qui y est posé.
     void placeDrawnInto(int target, const DrawnRecipe &how);
+    // Une recette rendue à une case : l'image du panneau appartient à la
+    // carte où elle a été posée, et non au style qu'on répand.
+    DrawnRecipe recipeFor(int key, DrawnRecipe how) const;
+    // La carte de cette case porte-t-elle un panneau, où une image puisse
+    // venir ?
+    bool cardCarriesPanel(int slot, const DrawnRecipe &how) const;
+    void dropPanelArt();
     void fillWithDrawn(bool emptyOnly);
     void placeDrawnHere();
     void addDrawnBack();
@@ -98,6 +106,7 @@ private:
     CardStyleEditor *m_drawnStyle = nullptr;
     CardStyleEditor *m_cardStyle = nullptr;
     QWidget *m_cardProps = nullptr;
+    QPushButton *m_dropArt = nullptr;
 
     QWidget *m_topBar = nullptr;
     QLabel *m_title = nullptr;
