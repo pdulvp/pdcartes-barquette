@@ -1,5 +1,6 @@
 # La bibliothèque partagée : le format des jeux de cartes, la liste des jeux
-# installés, et le style commun (palette, habillage des boîtes de dialogue).
+# installés, le dessin d'une carte, et le style commun (palette, habillage des
+# boîtes de dialogue).
 #
 # Bibliothèque statique : elle est liée dans le binaire du programme qui
 # l'emploie.
@@ -10,8 +11,12 @@
 add_library(cartotheque STATIC
     CardSet.cpp
     CardSet.h
+    CardArt.cpp
+    CardArt.h
     CardDeck.cpp
     CardDeck.h
+    DrawnDeck.cpp
+    DrawnDeck.h
     DllResources.cpp
     DllResources.h
     Palette.cpp

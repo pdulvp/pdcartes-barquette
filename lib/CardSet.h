@@ -1,5 +1,7 @@
 #pragma once
 
+#include "CardArt.h"
+
 #include <QByteArray>
 #include <QHash>
 #include <QPixmap>
@@ -28,6 +30,18 @@
 //
 // Les images sont stockées telles quelles : un PNG reste un PNG, un SVG reste
 // un SVG.
+//
+// Après les dos vient un bloc facultatif, les recettes des cases dessinées :
+//
+//     QByteArray « recettes »    l'étiquette du bloc
+//     qint32                     la version du bloc, 1 pour l'instant
+//     qint32  nombre de recettes puis, pour chacune :
+//         qint32 case, qint32 hauteur de rendu, puis huit QColor
+//
+// Le bloc est à la fin, et la version du format reste 1 : un programme écrit
+// avant lui s'arrête aux dos et ignore ce qui suit. Un jeu fabriqué
+// aujourd'hui s'ouvre donc dans une version déjà installée, laquelle y voit
+// de simples images -- ce qu'elles sont.
 
 struct Artwork {
     QByteArray kind;    // « png », « svg », « bmp », « jpg »
@@ -93,6 +107,31 @@ public:
     void removeBack(int at);
     void renameBack(int at, const QString &name);
 
+    // ----------------------------------------------------------------------
+    // Les cases dessinées.
+    //
+    // Une case peut recevoir une carte que la cartothèque dessine elle-même
+    // au lieu d'une image venue d'ailleurs. L'image produite est rangée comme
+    // les autres -- c'est un PNG, et un programme de jeu n'a pas à savoir
+    // d'où il vient -- mais la recette qui l'a produite est conservée à côté,
+    // de sorte que l'atelier puisse en changer les couleurs plus tard.
+    //
+    // Les cases sont numérotées comme ailleurs dans cette classe : de 0 à 52
+    // pour une face, et `backKey(n)` pour le n-ième dos.
+    static int backKey(int at) { return -1 - at; }
+    static bool isBackKey(int key) { return key < 0; }
+    static int backOfKey(int key) { return key < 0 ? -1 - key : -1; }
+
+    bool hasRecipe(int key) const;
+    DrawnRecipe recipe(int key) const;
+    // Les cases dessinées, dans l'ordre des faces puis des dos.
+    QVector<int> drawnKeys() const;
+    int drawnCount() const { return m_recipes.size(); }
+
+    void setDrawnFace(int slot, const Artwork &art, const DrawnRecipe &how);
+    void setDrawnBack(int at, const Artwork &art, const DrawnRecipe &how);
+    void addDrawnBack(const QString &name, const Artwork &art, const DrawnRecipe &how);
+
     bool save(const QString &path, QString *why) const;
     bool load(const QString &path, QString *why);
 
@@ -112,6 +151,7 @@ private:
     QPixmap drawn(const Artwork &art, const QSize &size, quint64 key) const;
 
     QHash<int, Artwork> m_faces;
+    QHash<int, DrawnRecipe> m_recipes;
     QVector<QPair<QString, Artwork>> m_backs;
     QString m_path;
     mutable QHash<quint64, QPixmap> m_drawn;

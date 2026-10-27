@@ -1,7 +1,9 @@
 #include "AtelierWindow.h"
 
+#include "CardStyleEditor.h"
 #include "DialogChrome.h"
 #include "DllResources.h"
+#include "DrawnDeck.h"
 #include "FaceGrid.h"
 #include "HelpDialog.h"
 #include "ImageJoin.h"
@@ -9,6 +11,7 @@
 #include "SourceTray.h"
 #include "SplitDialog.h"
 
+#include <QApplication>
 #include <QBuffer>
 #include <QCheckBox>
 #include <QCloseEvent>
@@ -29,6 +32,7 @@
 #include <QRegularExpression>
 #include <QScrollArea>
 #include <QSettings>
+#include <QTabWidget>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -251,6 +255,8 @@ QWidget *AtelierWindow::buildLeft() {
     m_gridRoom->setWidget(m_grid);
     rows->addWidget(m_gridRoom, 1);
 
+    rows->addWidget(buildCardProperties(panel));
+
     m_hint = new QLabel(panel);
     m_hint->setWordWrap(true);
     markHintLabel(m_hint);
@@ -263,13 +269,119 @@ QWidget *AtelierWindow::buildLeft() {
     return panel;
 }
 
+// Les propriétés de la carte choisie, sous la grille.
+//
+// La section n'apparaît que lorsque la case choisie porte une carte dessinée :
+// une image venue de l'extérieur n'a pas de couleurs à régler, et une section
+// grisée en permanence sous la grille prendrait la place pour rien.
+QWidget *AtelierWindow::buildCardProperties(QWidget *parent) {
+    m_cardProps = new QWidget(parent);
+    auto *rows = new QVBoxLayout(m_cardProps);
+    rows->setContentsMargins(0, 0, 0, 0);
+    rows->setSpacing(6);
+    rows->addWidget(dialogSectionHeading(m_cardProps, tr("La carte dessinée")));
+
+    auto *across = new QHBoxLayout;
+    across->setSpacing(10);
+    m_cardStyle = new CardStyleEditor(true, m_cardProps);
+    across->addWidget(m_cardStyle, 1);
+
+    auto *side = new QVBoxLayout;
+    side->setSpacing(5);
+    auto *spread = panelButton(m_cardProps, tr("Appliquer à tout"),
+                               tr("Donner ces couleurs à toutes les cartes dessinées du jeu"));
+    auto *adopt = panelButton(m_cardProps, tr("Garder pour la suite"),
+                              tr("Reprendre ces couleurs dans l'onglet « Le jeu dessiné », "
+                                 "pour les cartes posées ensuite"));
+    side->addWidget(spread);
+    side->addWidget(adopt);
+    side->addStretch();
+    across->addLayout(side);
+    rows->addLayout(across);
+
+    connect(spread, &QPushButton::clicked, this, &AtelierWindow::spreadRecipe);
+    connect(adopt, &QPushButton::clicked, this, &AtelierWindow::adoptRecipe);
+    connect(m_cardStyle, &CardStyleEditor::edited, this, [this](const DrawnRecipe &how) {
+        const int target = m_grid->target();
+        if (!m_set.hasRecipe(target)) return;
+        placeDrawnInto(target, how);
+        m_grid->reread();
+        noteChange();
+    });
+
+    m_cardProps->setVisible(false);
+    return m_cardProps;
+}
+
 QWidget *AtelierWindow::buildRight() {
+    m_sources = new QTabWidget(this);
+    m_sources->setDocumentMode(true);
+    m_sources->addTab(buildTrayTab(), tr("Les images"));
+    m_sources->addTab(buildDrawnTab(), tr("Le jeu dessiné"));
+    return m_sources;
+}
+
+// L'onglet du jeu dessiné : les cartes que la cartothèque trace elle-même.
+//
+// C'est la seule source qui ne demande aucun fichier : on choisit des
+// couleurs et on remplit. Elle sert à partir d'un jeu complet qu'on retouche,
+// plutôt que des cinquante-trois images qu'il faudrait trouver ailleurs.
+QWidget *AtelierWindow::buildDrawnTab() {
     auto *panel = new QWidget(this);
     auto *rows = new QVBoxLayout(panel);
-    rows->setContentsMargins(0, 0, 0, 0);
+    rows->setContentsMargins(0, 10, 0, 0);
     rows->setSpacing(8);
 
-    rows->addWidget(dialogSectionHeading(panel, tr("Les images")));
+    auto *says = new QLabel(tr("Les cartes que la cartothèque dessine elle-même. On les pose "
+                               "dans les cases, puis on retouche leurs couleurs — ici pour "
+                               "celles qui vont être posées, sous la grille pour celle qui "
+                               "est choisie."),
+                            panel);
+    says->setWordWrap(true);
+    markHintLabel(says);
+    rows->addWidget(says);
+
+    m_drawnStyle = new CardStyleEditor(false, panel);
+    rows->addWidget(m_drawnStyle);
+
+    auto *fills = new QHBoxLayout;
+    fills->setSpacing(6);
+    auto *empties = panelButton(panel, tr("Remplir les cases vides"),
+                                tr("Poser une carte dessinée dans chaque case encore vide, "
+                                   "sans toucher à ce qui est déjà placé"));
+    auto *all = panelButton(panel, tr("Tout remplir"),
+                            tr("Poser une carte dessinée dans les cinquante-trois cases, en "
+                               "remplaçant ce qui s'y trouve"));
+    fills->addWidget(empties);
+    fills->addWidget(all);
+    fills->addStretch();
+    rows->addLayout(fills);
+
+    auto *ones = new QHBoxLayout;
+    ones->setSpacing(6);
+    auto *here = panelButton(panel, tr("Poser dans la case choisie"),
+                             tr("Dessiner la carte que la case choisie attend"));
+    auto *back = panelButton(panel, tr("Ajouter le dos"),
+                             tr("Ajouter le treillis comme dos de plus"));
+    ones->addWidget(here);
+    ones->addWidget(back);
+    ones->addStretch();
+    rows->addLayout(ones);
+    rows->addStretch();
+
+    connect(empties, &QPushButton::clicked, this, [this] { fillWithDrawn(true); });
+    connect(all, &QPushButton::clicked, this, [this] { fillWithDrawn(false); });
+    connect(here, &QPushButton::clicked, this, &AtelierWindow::placeDrawnHere);
+    connect(back, &QPushButton::clicked, this, &AtelierWindow::addDrawnBack);
+
+    return panel;
+}
+
+QWidget *AtelierWindow::buildTrayTab() {
+    auto *panel = new QWidget(this);
+    auto *rows = new QVBoxLayout(panel);
+    rows->setContentsMargins(0, 10, 0, 0);
+    rows->setSpacing(8);
 
     auto *opens = new QHBoxLayout;
     opens->setSpacing(6);
@@ -849,6 +961,84 @@ void AtelierWindow::addBackFromTray() {
 }
 
 // ---------------------------------------------------------------------------
+// Le jeu dessiné.
+
+void AtelierWindow::placeDrawnInto(int target, const DrawnRecipe &how) {
+    if (FaceGrid::isBack(target)) {
+        m_set.setDrawnBack(FaceGrid::backOfTarget(target), drawnBackArt(how), how);
+        return;
+    }
+    m_set.setDrawnFace(target, drawnFaceArt(target, how), how);
+}
+
+void AtelierWindow::fillWithDrawn(bool emptyOnly) {
+    const DrawnRecipe how = m_drawnStyle->recipe();
+
+    // Cinquante-trois cartes à tracer puis à encoder en PNG : c'est l'affaire
+    // d'une seconde, mais d'une seconde pendant laquelle la fenêtre ne
+    // répond pas.
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    for (int slot = 0; slot < CardSet::kSlots; ++slot) {
+        if (emptyOnly && m_set.hasFace(slot)) continue;
+        m_set.setDrawnFace(slot, drawnFaceArt(slot, how), how);
+    }
+    // Un jeu a besoin d'un dos. « Remplir les cases vides » n'en ajoute un
+    // que s'il n'y en a aucun ; « Tout remplir » refait le premier.
+    if (m_set.backCount() == 0) {
+        m_set.addDrawnBack(tr("Treillis"), drawnBackArt(how), how);
+    } else if (!emptyOnly) {
+        m_set.setDrawnBack(0, drawnBackArt(how), how);
+    }
+    QApplication::restoreOverrideCursor();
+
+    m_grid->reread();
+    noteChange();
+}
+
+void AtelierWindow::placeDrawnHere() {
+    const int target = m_grid->target();
+    placeDrawnInto(target, m_drawnStyle->recipe());
+    m_grid->reread();
+    // On avance à la case vide suivante, comme après une image posée.
+    if (!FaceGrid::isBack(target)) m_grid->setTarget(m_grid->nextEmptyFace(target));
+    noteChange();
+}
+
+void AtelierWindow::addDrawnBack() {
+    const DrawnRecipe how = m_drawnStyle->recipe();
+    m_set.addDrawnBack(tr("Treillis %1").arg(m_set.backCount() + 1), drawnBackArt(how), how);
+    m_grid->reread();
+    noteChange();
+}
+
+void AtelierWindow::spreadRecipe() {
+    const QVector<int> drawn = m_set.drawnKeys();
+    if (drawn.isEmpty()) return;
+    const DrawnRecipe how = m_cardStyle->recipe();
+
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    for (const int key : drawn) placeDrawnInto(key, how);
+    QApplication::restoreOverrideCursor();
+
+    m_grid->reread();
+    noteChange();
+}
+
+void AtelierWindow::adoptRecipe() {
+    m_drawnStyle->setRecipe(m_cardStyle->recipe());
+    m_sources->setCurrentIndex(1);
+}
+
+void AtelierWindow::updateCardProperties() {
+    const int target = m_grid->target();
+    const bool drawn = m_set.hasRecipe(target);
+    m_cardProps->setVisible(drawn);
+    if (!drawn) return;
+    m_cardStyle->showCard(target);
+    m_cardStyle->setRecipe(m_set.recipe(target));
+}
+
+// ---------------------------------------------------------------------------
 
 void AtelierWindow::noteChange() {
     m_set.name = m_name->text();
@@ -876,8 +1066,10 @@ void AtelierWindow::updateChrome() {
     } else {
         says = tr("Case choisie : %1. ").arg(CardSet::slotName(target));
     }
-    if (m_tray->count() == 0) {
-        says += tr("Ouvrez des images à droite pour commencer.");
+    if (m_set.hasRecipe(target)) {
+        says += tr("Elle est dessinée : ses couleurs se règlent juste en dessous.");
+    } else if (m_tray->count() == 0) {
+        says += tr("Ouvrez des images à droite, ou posez-y le jeu dessiné.");
     } else if (m_tray->chosen() < 0) {
         says += tr("Choisissez une image à droite, puis « Ranger ici ».");
     } else if (m_tray->count() > 1) {
@@ -887,6 +1079,8 @@ void AtelierWindow::updateChrome() {
         says += tr("Clic droit sur une case pour la vider.");
     }
     m_hint->setText(says);
+
+    updateCardProperties();
 
     m_saveButton->setEnabled(faces > 0 || m_set.backCount() > 0);
     m_installButton->setEnabled(faces > 0);
@@ -934,7 +1128,16 @@ void AtelierWindow::applyColours() {
                       "QMenu::item { padding: 6px 16px; border-radius: 5px; }"
                       "QMenu::item:selected { background: %4; color: %6; }"
                       "QMenu::item:disabled { color: %7; }"
-                      "QMenu::separator { height: 1px; background: %3; margin: 4px 8px; }")
+                      "QMenu::separator { height: 1px; background: %3; margin: 4px 8px; }"
+                      // Les onglets du panneau de droite. Le style du bureau
+                      // les dessinerait dans ses propres couleurs, au milieu
+                      // d'une fenêtre qui porte les siennes.
+                      "QTabWidget::pane { border: none; }"
+                      "QTabBar::tab { background: transparent; color: %7;"
+                      " border-bottom: 2px solid transparent; padding: 7px 14px;"
+                      " margin-right: 2px; }"
+                      "QTabBar::tab:hover { color: %2; }"
+                      "QTabBar::tab:selected { color: %4; border-bottom: 2px solid %4; }")
                       .arg(scheme.field.name(), scheme.surfaceText.name(), scheme.edge.name(),
                            scheme.accent.name(), scheme.surface.name(), scheme.accentText.name(),
                            scheme.hint.name()));
@@ -975,6 +1178,8 @@ void AtelierWindow::applyColours() {
     }
 
     recolourSectionHeadings(this);
+    m_drawnStyle->applyColours();
+    m_cardStyle->applyColours();
     m_grid->update();
     m_tray->update();
     update();

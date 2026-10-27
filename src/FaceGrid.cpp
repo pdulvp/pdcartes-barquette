@@ -34,8 +34,6 @@ QString suitMark(int suit) {
     return QString();
 }
 
-bool suitIsRed(int suit) { return suit == 1 || suit == 2; }
-
 } // namespace
 
 FaceGrid::FaceGrid(QWidget *parent) : QWidget(parent) {
@@ -271,6 +269,19 @@ void FaceGrid::paintEvent(QPaintEvent *) {
             }
         }
 
+        // Une case dessinée porte une marque : c'est à cela qu'on voit
+        // laquelle se retouche, une image venue de l'extérieur n'ayant pas de
+        // couleurs à régler.
+        if (m_set && !adder && m_set->hasRecipe(cell.target)) {
+            // Au coin supérieur droit : le rang et la couleur d'une carte
+            // s'écrivent dans le coin opposé, que la marque masquerait.
+            const qreal dot = std::max(5.0, cell.box.width() * 0.17);
+            painter.setPen(QPen(scheme.desk, 1.0));
+            painter.setBrush(scheme.accent);
+            painter.drawEllipse(QRectF(cell.box.right() - dot - 2.5, cell.box.top() + 2.5,
+                                       dot, dot));
+        }
+
         painter.setBrush(Qt::NoBrush);
         if (chosen) {
             painter.setPen(QPen(scheme.accent, 2.4));
@@ -300,7 +311,7 @@ void FaceGrid::paintEvent(QPaintEvent *) {
         pip.setBold(true);
         pip.setPixelSize(std::max(11, int(first->box.height() * 0.34)));
         painter.setFont(pip);
-        painter.setPen(suitIsRed(suit) ? scheme.cardRed : scheme.surfaceText);
+        painter.setPen(cardSuitIsRed(suit) ? scheme.cardRed : scheme.surfaceText);
         painter.drawText(QRectF(0, first->box.top(), m_labelWidth, first->box.height()),
                          Qt::AlignCenter, suitMark(suit));
     }

@@ -16,6 +16,19 @@ const char kMagic[] = "CARTES";
 constexpr int kMagicSize = 6;
 constexpr quint16 kFormatVersion = 1;
 
+// L'étiquette du bloc des recettes, et sa version.
+//
+// Le bloc est écrit après les dos, et la version du format reste 1 : un
+// lecteur écrit avant lui s'arrête aux dos sans jamais regarder plus loin.
+// L'étiquette est là pour le lecteur qui, lui, regarde : elle lui dit qu'il
+// s'agit bien de recettes et non d'un bloc d'une autre sorte, ajouté un jour
+// à la même place.
+const char kRecipeTag[] = "recettes";
+// Version 2 : le panneau des figures peut être retiré, et l'emblème
+// redimensionné. Une recette en version 1 n'a ni l'un ni l'autre, et garde
+// donc son panneau et un emblème à sa taille d'origine.
+constexpr qint32 kRecipeVersion = 2;
+
 // La taille d'une image, lue dans son en-tête : il n'est pas nécessaire de
 // décoder l'image entière pour connaître ses dimensions. Nulle si le type
 // d'image n'est pas lisible, par exemple un SVG en l'absence du greffon.
@@ -226,12 +239,15 @@ void CardSet::setFace(int slot, const Artwork &art) {
         return;
     }
     m_faces.insert(slot, art);
+    // L'image reçue n'est plus celle que la recette produisait.
+    m_recipes.remove(slot);
     forgetDrawings();
     refreshArtSize();
 }
 
 void CardSet::clearFace(int slot) {
     m_faces.remove(slot);
+    m_recipes.remove(slot);
     forgetDrawings();
     refreshArtSize();
 }
@@ -266,6 +282,7 @@ void CardSet::addBack(const QString &name, const Artwork &art) {
 void CardSet::setBack(int at, const Artwork &art) {
     if (at < 0 || at >= m_backs.size() || art.isEmpty()) return;
     m_backs[at].second = art;
+    m_recipes.remove(backKey(at));
     forgetDrawings();
     refreshArtSize();
 }
@@ -273,6 +290,20 @@ void CardSet::setBack(int at, const Artwork &art) {
 void CardSet::removeBack(int at) {
     if (at < 0 || at >= m_backs.size()) return;
     m_backs.remove(at);
+    // Les dos suivants reculent d'un cran, et leurs recettes avec eux : la
+    // clé d'une recette de dos est une position dans la liste, non un
+    // identifiant.
+    QHash<int, DrawnRecipe> moved;
+    for (auto it = m_recipes.constBegin(); it != m_recipes.constEnd(); ++it) {
+        if (!isBackKey(it.key())) {
+            moved.insert(it.key(), it.value());
+            continue;
+        }
+        const int was = backOfKey(it.key());
+        if (was == at) continue;
+        moved.insert(backKey(was > at ? was - 1 : was), it.value());
+    }
+    m_recipes = moved;
     forgetDrawings();
     refreshArtSize();
 }
@@ -280,6 +311,46 @@ void CardSet::removeBack(int at) {
 void CardSet::renameBack(int at, const QString &name) {
     if (at < 0 || at >= m_backs.size() || name.trimmed().isEmpty()) return;
     m_backs[at].first = name.trimmed();
+}
+
+// ---------------------------------------------------------------------------
+// Les cases dessinées.
+
+bool CardSet::hasRecipe(int key) const { return m_recipes.contains(key); }
+
+DrawnRecipe CardSet::recipe(int key) const { return m_recipes.value(key); }
+
+QVector<int> CardSet::drawnKeys() const {
+    QVector<int> keys;
+    keys.reserve(m_recipes.size());
+    for (int slot = 0; slot < kSlots; ++slot) {
+        if (m_recipes.contains(slot)) keys.append(slot);
+    }
+    for (int at = 0; at < m_backs.size(); ++at) {
+        if (m_recipes.contains(backKey(at))) keys.append(backKey(at));
+    }
+    return keys;
+}
+
+void CardSet::setDrawnFace(int slot, const Artwork &art, const DrawnRecipe &how) {
+    setFace(slot, art);
+    // `setFace()` a retiré la recette : une image reçue de l'extérieur n'en a
+    // pas. Celle-ci est posée après coup, et seulement si l'image a bien été
+    // rangée.
+    if (hasFace(slot)) m_recipes.insert(slot, how);
+}
+
+void CardSet::setDrawnBack(int at, const Artwork &art, const DrawnRecipe &how) {
+    setBack(at, art);
+    if (at >= 0 && at < m_backs.size() && !m_backs.at(at).second.isEmpty()) {
+        m_recipes.insert(backKey(at), how);
+    }
+}
+
+void CardSet::addDrawnBack(const QString &name, const Artwork &art, const DrawnRecipe &how) {
+    const int was = m_backs.size();
+    addBack(name, art);
+    if (m_backs.size() > was) m_recipes.insert(backKey(was), how);
 }
 
 // ---------------------------------------------------------------------------
@@ -305,6 +376,20 @@ bool CardSet::save(const QString &path, QString *why) const {
 
         out << qint32(m_backs.size());
         for (const auto &back : m_backs) out << back.first << back.second.kind << back.second.bytes;
+
+        // Les recettes des cases dessinées. Le bloc est omis quand il n'y en
+        // a aucune, ce qui laisse le fichier identique à ce qu'il était.
+        const QVector<int> drawn = drawnKeys();
+        if (!drawn.isEmpty()) {
+            out << QByteArray(kRecipeTag) << kRecipeVersion << qint32(drawn.size());
+            for (const int key : drawn) {
+                const DrawnRecipe how = m_recipes.value(key);
+                out << qint32(key) << qint32(how.height);
+                out << how.style.paper << how.style.ink << how.style.red << how.style.panel
+                    << how.style.cap << how.style.bell << how.style.back << how.style.backInk;
+                out << how.style.panelled << qreal(how.style.emblemSize);
+            }
+        }
     }
 
     QFile file(path);
@@ -418,6 +503,42 @@ bool CardSet::load(const QString &path, QString *why) {
                        .arg(QFileInfo(path).fileName());
         }
         return false;
+    }
+
+    // Le bloc des recettes, s'il y en a un. Son absence est le cas ordinaire
+    // d'un jeu fabriqué à partir d'images, et celui de tous les jeux écrits
+    // avant ce bloc : les cases restent alors de simples images, que l'atelier
+    // ne propose pas de retoucher.
+    if (!in.atEnd()) {
+        QByteArray tag;
+        qint32 blockVersion = 0;
+        qint32 count = 0;
+        in >> tag >> blockVersion >> count;
+        if (in.status() == QDataStream::Ok && tag == QByteArray(kRecipeTag) &&
+            blockVersion <= kRecipeVersion && count > 0 && count <= kSlots + 4096) {
+            for (qint32 i = 0; i < count; ++i) {
+                qint32 key = 0;
+                qint32 height = 0;
+                DrawnRecipe how;
+                in >> key >> height;
+                in >> how.style.paper >> how.style.ink >> how.style.red >> how.style.panel >>
+                    how.style.cap >> how.style.bell >> how.style.back >> how.style.backInk;
+                if (blockVersion >= 2) {
+                    qreal emblem = 1.0;
+                    in >> how.style.panelled >> emblem;
+                    how.style.emblemSize = emblem > 0.0 ? emblem : 1.0;
+                }
+                if (in.status() != QDataStream::Ok) break;
+                how.height = height > 0 ? height : kDrawnHeight;
+                // Une recette dont la case n'a rien reçu serait sans objet.
+                const bool there = isBackKey(key) ? backOfKey(key) < read.m_backs.size()
+                                                  : read.m_faces.contains(key);
+                if (there) read.m_recipes.insert(key, how);
+            }
+        }
+        // Un bloc illisible ou inconnu n'invalide pas le fichier : les images,
+        // qui sont l'essentiel, ont déjà été lues.
+        in.resetStatus();
     }
 
     read.m_path = path;

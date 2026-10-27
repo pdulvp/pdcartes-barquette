@@ -46,6 +46,8 @@ add_executable(pdcartes-barquette
     src/main.cpp
     src/AtelierWindow.cpp
     src/AtelierWindow.h
+    src/CardStyleEditor.cpp
+    src/CardStyleEditor.h
     src/FaceGrid.cpp
     src/FaceGrid.h
     src/ImageJoin.cpp

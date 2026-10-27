@@ -50,9 +50,10 @@ de sorte qu'on peut employer un jeu de cartes différent dans chacun.</p>
 
 <h1>Fabriquer un jeu</h1>
 
-<p>La fenêtre a deux zones : les cases du jeu à gauche, les images ouvertes à
-droite. Le travail consiste à sélectionner une case, sélectionner une image, et
-recommencer.</p>
+<p>La fenêtre a deux zones : les cases du jeu à gauche, et à droite les cartes
+dont on dispose, réparties en deux onglets — <b>Les images</b>, celles qu'on a
+ouvertes, et <b>Le jeu dessiné</b>, que le programme trace lui-même. Le travail
+consiste à sélectionner une case, sélectionner une carte, et recommencer.</p>
 
 <table>
 <tr><th>Images…</th><td>ouvre des fichiers un par un : PNG, SVG, BMP, JPEG,
@@ -79,6 +80,48 @@ suivante</td></tr>
 case vide suivante : placer cinquante-trois images demande donc peu
 d'attention. Les images déjà placées portent une pastille, afin de voir d'un
 coup d'œil ce qui reste à faire.</p>
+
+<h1>Le jeu dessiné</h1>
+
+<p>L'onglet <b>Le jeu dessiné</b> ne demande aucun fichier : les cartes y sont
+tracées par le programme, et il suffit de choisir des couleurs. C'est de quoi
+obtenir un jeu complet en un clic, puis le retoucher — plutôt que de réunir
+cinquante-trois images.</p>
+
+<table>
+<tr><th><b>Remplir les cases vides</b></th><td>dessine ce qui manque, sans
+toucher aux images déjà placées</td></tr>
+<tr><th><b>Tout remplir</b></th><td>dessine les cinquante-trois cases, en
+remplaçant ce qui s'y trouve</td></tr>
+<tr><th><b>Poser dans la case choisie</b></th><td>dessine la seule carte que
+cette case attend</td></tr>
+<tr><th><b>Ajouter le dos</b></th><td>ajoute le treillis comme dos de
+plus</td></tr>
+</table>
+
+<p>Le <b>thème</b> donne toutes les couleurs d'un coup ; les pastilles en
+dessous les retouchent une à une. Celle qui s'appelle <b>Panneau des
+figures</b> est le rectangle beige derrière le roi, la dame, le valet et le
+joker : sa case se décoche, et l'emblème est alors posé à même le papier. Le
+champ <b>Emblème</b> grossit ou réduit la couronne, le diadème, la fleur de
+lis et le bonnet du joker. La <b>hauteur</b> est celle des images produites :
+quelques centaines de pixels suffisent, les cinquante-trois cartes partageant
+le même fichier.</p>
+
+<h2>Retoucher une carte déjà posée</h2>
+
+<p>Une case dessinée porte une <b>pastille</b> dans son coin. Lorsqu'elle est
+sélectionnée, la section <b>La carte dessinée</b> apparaît sous la grille et
+règle ses couleurs à elle : la carte est redessinée à chaque changement.</p>
+
+<p><b>Appliquer à tout</b> donne ces couleurs à toutes les cartes dessinées du
+jeu, ce qui est la manière ordinaire de procéder : on règle une carte jusqu'à
+ce qu'elle convienne, puis on étend le réglage. <b>Garder pour la suite</b>
+reprend ces couleurs dans l'onglet, pour les cartes posées ensuite.</p>
+
+<p>Ces réglages sont <b>conservés dans le fichier</b>, à côté des images : un
+jeu rouvert ici reste donc modifiable. Les programmes de jeu, eux, n'y voient
+que des images — ce qu'elles sont.</p>
 
 <h2>Reprendre les cartes d'un autre jeu</h2>
 
