@@ -39,6 +39,32 @@ aucune bibliothèque à charger.</p>
 quel fichier : on le joint à un courriel, on le copie sur une clé, on le
 supprime quand on n'en veut plus.</p>
 
+<h2>Trois genres de jeux</h2>
+
+<p>Un jeu annonce ce qu'il contient, et la grille ne montre que les cases de
+ce genre-là. Le choix se fait à droite du nom.</p>
+
+<table>
+<tr><th>Jeu de 52</th><td>l'as au roi dans quatre couleurs, et le joker :
+le rami, la belote à 52, la bataille</td></tr>
+<tr><th>Jeu de 32</th><td>du sept à l'as, et le joker : la belote, la
+manille, le piquet</td></tr>
+<tr><th>Tarot</th><td>quatre couleurs de quatorze cartes — le cavalier
+s'ajoute entre le valet et la dame — les vingt et un atouts, et l'excuse à la
+place du joker</td></tr>
+</table>
+
+<p>Changer de genre <b>n'efface rien</b> : un tarot ramené à un jeu de 52
+garde ses cavaliers et ses atouts, simplement cachés, et les retrouve si on
+lui rend son genre.</p>
+
+<p>Un jeu de 52 et un jeu de 32 s'ouvrent dans n'importe quel programme, même
+écrit avant ces genres : il n'y voit qu'un jeu de 52, complet ou non. Un
+<b>tarot</b>, lui, est écrit dans un format que les programmes plus anciens
+refusent — ils rangeraient ses atouts par-dessus les trèfles. Les programmes
+de jeu ne proposent d'ailleurs que les genres dont ils savent se servir :
+<b>pdcartes-rami</b> ne liste que les jeux de 52.</p>
+
 <h2>Le dossier des cartes</h2>
 
 <p>C'est <b>~/.config/cartes</b>, commun à tous les programmes qui lisent ce
@@ -112,6 +138,22 @@ de lis, le bonnet et le symbole de l'as, et <b>Emblèmes en verre</b> les
 remplit d'un dégradé au lieu d'un aplat. Les symboles des cartes de deux à dix
 restent plats : à leur taille, un dégradé ne se lirait pas.</p>
 
+<p><b>Lettres</b> choisit celles du coin. Un jeu à enseignes françaises ne se
+lit pas de la même façon selon le pays qui l'imprime :</p>
+
+<table>
+<tr><th>Français</th><td>A V C D R — as, valet, cavalier, dame, roi</td></tr>
+<tr><th>Anglais</th><td>A J Kn Q K — ace, jack, knight, queen, king</td></tr>
+<tr><th>Allemand</th><td>A B C D K — Ass, Bube, Cavall, Dame, König</td></tr>
+<tr><th>Espagnol</th><td>1 S C D R — l'as y est chiffré, <b>C</b> est le
+caballo, c'est-à-dire le cavalier, et la dame emprunte <b>D</b>, le jeu
+espagnol n'en ayant pas</td></tr>
+</table>
+
+<p>Le <b>cavalier</b> ne paraît que sur un tarot, mais chaque convention a sa
+lettre : une carte ne change pas de lettre selon le jeu où elle se
+trouve.</p>
+
 <p> La <b>hauteur</b> est celle des images produites :
 quelques centaines de pixels suffisent, les cinquante-trois cartes partageant
 le même fichier.</p>
@@ -147,7 +189,8 @@ qu'une, c'est la manipulation ordinaire : la case à gauche, l'image à droite,
 
 <h2>Les dos</h2>
 
-<p>Les dos sont au bout de la dernière rangée, après le joker. La case marquée
+<p>Les dos sont au bout de la dernière rangée, après le joker — ou après
+l'excuse, dans un tarot. La case marquée
 d'un <b>+</b> en ajoute un avec l'image sélectionnée ; le clic droit en enlève
 un.</p>
 

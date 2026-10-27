@@ -14,7 +14,13 @@ namespace {
 
 const char kMagic[] = "CARTES";
 constexpr int kMagicSize = 6;
-constexpr quint16 kFormatVersion = 1;
+// Le format d'un jeu de 52 ou de 32 reste 1, et s'ouvre donc partout. Un
+// tarot s'écrit en 2 : ses atouts sont rangés sous la couleur 4, qu'un
+// lecteur ancien ramènerait dans les bornes 0-3 et poserait par-dessus les
+// trèfles. Il faut qu'il refuse le fichier, et le format 2 le lui fait
+// refuser avec un message juste.
+constexpr quint16 kFormatVersion = 2;
+constexpr quint16 kPlainVersion = 1;
 
 // L'étiquette du bloc des recettes, et sa version.
 //
@@ -23,6 +29,10 @@ constexpr quint16 kFormatVersion = 1;
 // L'étiquette est là pour le lecteur qui, lui, regarde : elle lui dit qu'il
 // s'agit bien de recettes et non d'un bloc d'une autre sorte, ajouté un jour
 // à la même place.
+// L'étiquette du bloc du genre, et sa version.
+const char kKindTag[] = "genre";
+constexpr qint32 kKindVersion = 1;
+
 const char kRecipeTag[] = "recettes";
 // Les versions du bloc se lisent en cascade, chacune n'ajoutant que ses
 // champs à la fin de chaque recette :
@@ -31,10 +41,12 @@ const char kRecipeTag[] = "recettes";
 //     2  le panneau des figures, qui peut être retiré, et la taille de
 //        l'emblème
 //     3  l'aspect de verre de l'emblème
+//     4  la convention qui donne les lettres du coin
 //
 // Une recette plus ancienne garde donc les valeurs d'origine des champs
-// qu'elle n'a pas : son panneau, un emblème à sa taille et un emblème plat.
-constexpr qint32 kRecipeVersion = 3;
+// qu'elle n'a pas : son panneau, un emblème à sa taille, un emblème plat et
+// les lettres françaises.
+constexpr qint32 kRecipeVersion = 4;
 
 // La taille d'une image, lue dans son en-tête : il n'est pas nécessaire de
 // décoder l'image entière pour connaître ses dimensions. Nulle si le type
@@ -58,9 +70,29 @@ QString rankWord(int rank) {
     case 11: return QCoreApplication::translate("cardset", "valet");
     case 12: return QCoreApplication::translate("cardset", "dame");
     case 13: return QCoreApplication::translate("cardset", "roi");
+    case CardSet::kKnightRank: return QCoreApplication::translate("cardset", "cavalier");
     default: break;
     }
     return QString::number(rank);
+}
+
+// L'ordre dans lequel les rangs d'une couleur se présentent : l'as, le deux
+// au dix, le valet, le cavalier, la dame, le roi. Le cavalier porte le rang
+// 14 et vient pourtant en douzième position ; c'est tout l'objet de cette
+// table.
+constexpr int kRankOrder[CardSet::kRanksInSuit] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 12, 13};
+
+int placeOfRank(int rank) {
+    for (int at = 0; at < CardSet::kRanksInSuit; ++at) {
+        if (kRankOrder[at] == rank) return at;
+    }
+    return 0;
+}
+
+// Les rangs d'un jeu de 32 : du sept à l'as, le dix et les trois figures
+// compris.
+bool shortDeckRank(int rank) {
+    return rank == 1 || (rank >= 7 && rank <= 13);
 }
 
 QString rankMark(int rank) {
@@ -70,6 +102,7 @@ QString rankMark(int rank) {
     case 11: return QCoreApplication::translate("cardset", "V");
     case 12: return QCoreApplication::translate("cardset", "D");
     case 13: return QCoreApplication::translate("cardset", "R");
+    case CardSet::kKnightRank: return QCoreApplication::translate("cardset", "C");
     default: break;
     }
     return QString::number(rank);
@@ -140,22 +173,62 @@ Artwork Artwork::fromFile(const QString &path, QString *why) {
 // ---------------------------------------------------------------------------
 
 int CardSet::slotFor(int rank, int suit) {
+    if (suit == kTrumpSuit) return slotForTrump(rank);
     if (rank <= 0) return kJokerSlot;
-    return 1 + qBound(0, suit, 3) * 13 + (qBound(1, rank, 13) - 1);
+    return 1 + qBound(0, suit, 3) * kRanksInSuit + placeOfRank(qBound(1, rank, kKnightRank));
 }
 
 int CardSet::rankOfSlot(int slot) {
     if (slot <= kJokerSlot || slot >= kSlots) return 0;
-    return (slot - 1) % 13 + 1;
+    if (isTrumpSlot(slot)) return trumpOfSlot(slot);
+    return kRankOrder[(slot - 1) % kRanksInSuit];
 }
 
 int CardSet::suitOfSlot(int slot) {
     if (slot <= kJokerSlot || slot >= kSlots) return 0;
-    return (slot - 1) / 13;
+    if (isTrumpSlot(slot)) return kTrumpSuit;
+    return (slot - 1) / kRanksInSuit;
+}
+
+bool CardSet::isTrumpSlot(int slot) {
+    return slot > 4 * kRanksInSuit && slot < kSlots;
+}
+
+int CardSet::trumpOfSlot(int slot) {
+    if (!isTrumpSlot(slot)) return 0;
+    return slot - 4 * kRanksInSuit;
+}
+
+int CardSet::slotForTrump(int number) {
+    if (number < 1 || number > kTrumpCount) return kJokerSlot;
+    return 4 * kRanksInSuit + number;
+}
+
+QString CardSet::romanNumber(int number) {
+    // Les atouts vont de I à XXI : quatre symboles suffisent, et la table
+    // reste plus courte qu'une division répétée.
+    static const struct {
+        int value;
+        const char *sign;
+    } kSigns[] = {{10, "X"}, {9, "IX"}, {5, "V"}, {4, "IV"}, {1, "I"}};
+    QString written;
+    int left = qBound(0, number, 3999);
+    for (const auto &sign : kSigns) {
+        while (left >= sign.value) {
+            written += QLatin1String(sign.sign);
+            left -= sign.value;
+        }
+    }
+    return written;
 }
 
 QString CardSet::slotName(int slot) {
-    if (slot == kJokerSlot) return QCoreApplication::translate("cardset", "le joker");
+    if (slot == kJokerSlot) {
+        return QCoreApplication::translate("cardset", "le joker ou l'excuse");
+    }
+    if (isTrumpSlot(slot)) {
+        return QCoreApplication::translate("cardset", "l'atout %1").arg(trumpOfSlot(slot));
+    }
     const int rank = rankOfSlot(slot);
     QString spelled;
     if (rank == 1) {
@@ -171,7 +244,68 @@ QString CardSet::slotName(int slot) {
 
 QString CardSet::slotShort(int slot) {
     if (slot == kJokerSlot) return QStringLiteral("★");
+    if (isTrumpSlot(slot)) return romanNumber(trumpOfSlot(slot));
     return rankMark(rankOfSlot(slot)) + suitMark(suitOfSlot(slot));
+}
+
+// ---------------------------------------------------------------------------
+// Les genres.
+
+QString CardSet::kindName(DeckKind kind) {
+    switch (kind) {
+    case DeckKind::Short: return QCoreApplication::translate("cardset", "Jeu de 32");
+    case DeckKind::Tarot: return QCoreApplication::translate("cardset", "Tarot");
+    case DeckKind::Full: break;
+    }
+    return QCoreApplication::translate("cardset", "Jeu de 52");
+}
+
+QString CardSet::kindNote(DeckKind kind) {
+    switch (kind) {
+    case DeckKind::Short:
+        return QCoreApplication::translate(
+            "cardset", "Du sept à l'as dans quatre couleurs, et le joker : la belote, "
+                       "la manille, le piquet.");
+    case DeckKind::Tarot:
+        return QCoreApplication::translate(
+            "cardset", "Quatre couleurs de quatorze cartes, cavalier compris, les "
+                       "vingt et un atouts et l'excuse.");
+    case DeckKind::Full: break;
+    }
+    return QCoreApplication::translate(
+        "cardset", "L'as au roi dans quatre couleurs, et le joker : le rami, la belote "
+                   "à 52, la bataille.");
+}
+
+bool CardSet::kindUses(DeckKind kind, int slot) {
+    if (slot < 0 || slot >= kSlots) return false;
+    if (slot == kJokerSlot) return true;  // le joker, ou l'excuse du tarot
+    if (isTrumpSlot(slot)) return kind == DeckKind::Tarot;
+    const int rank = kRankOrder[(slot - 1) % kRanksInSuit];
+    if (rank == kKnightRank) return kind == DeckKind::Tarot;
+    if (kind == DeckKind::Short) return shortDeckRank(rank);
+    return true;
+}
+
+int CardSet::slotCountOf(DeckKind kind) {
+    switch (kind) {
+    case DeckKind::Short: return 1 + 4 * 8;
+    case DeckKind::Tarot: return kSlots;
+    case DeckKind::Full: break;
+    }
+    return 1 + 4 * 13;
+}
+
+QVector<int> CardSet::slotsOf(DeckKind kind) {
+    QVector<int> wanted;
+    wanted.reserve(slotCountOf(kind));
+    // Les couleurs d'abord, puis les atouts, et le joker ou l'excuse en
+    // dernier : c'est l'ordre dans lequel la grille les présente.
+    for (int slot = 1; slot < kSlots; ++slot) {
+        if (kindUses(kind, slot)) wanted.append(slot);
+    }
+    wanted.append(kJokerSlot);
+    return wanted;
 }
 
 bool CardSet::isEmpty() const { return m_faces.isEmpty() && m_backs.isEmpty(); }
@@ -179,12 +313,12 @@ bool CardSet::isEmpty() const { return m_faces.isEmpty() && m_backs.isEmpty(); }
 int CardSet::filledFaces() const {
     int count = 0;
     for (int slot = 0; slot < kSlots; ++slot) {
-        if (hasFace(slot)) ++count;
+        if (usesSlot(slot) && hasFace(slot)) ++count;
     }
     return count;
 }
 
-bool CardSet::complete() const { return filledFaces() == kSlots; }
+bool CardSet::complete() const { return filledFaces() == slotCount(); }
 
 qreal CardSet::aspect() const {
     if (artSize.width() > 0 && artSize.height() > 0) {
@@ -363,6 +497,23 @@ void CardSet::addDrawnBack(const QString &name, const Artwork &art, const DrawnR
 // ---------------------------------------------------------------------------
 
 bool CardSet::save(const QString &path, QString *why) const {
+    // Le fichier contient-il une carte que le format 1 ne sait pas désigner ?
+    //
+    // Un lecteur écrit avant les genres ramène les rangs et les couleurs dans
+    // les bornes qu'il connaît : un cavalier, rang 14, y devient le roi de sa
+    // couleur, et un atout, couleur 4, y devient un trèfle. Il ouvrirait donc
+    // le fichier sans erreur et montrerait de fausses cartes. Le format 2 le
+    // lui fait refuser.
+    //
+    // C'est le contenu qui décide, et non le genre déclaré : celui-ci dit
+    // comment présenter le jeu, pas ce qu'il contient — un tarot ramené à un
+    // jeu de 52 garde ses cavaliers et ses atouts.
+    bool needsNewFormat = false;
+    for (int slot = 0; slot < kSlots && !needsNewFormat; ++slot) {
+        if (!hasFace(slot)) continue;
+        needsNewFormat = isTrumpSlot(slot) || rankOfSlot(slot) == kKnightRank;
+    }
+
     QByteArray body;
     {
         QDataStream out(&body, QIODevice::WriteOnly);
@@ -375,6 +526,11 @@ bool CardSet::save(const QString &path, QString *why) const {
         for (int slot = 0; slot < kSlots; ++slot) {
             if (hasFace(slot)) filled.append(slot);
         }
+        // Toutes les faces sont écrites, y compris celles que le genre
+        // déclaré ne montre pas : un tarot ramené à un jeu de 52 garde ses
+        // cavaliers et ses atouts, et les retrouve si on lui rend son genre.
+        // C'est aussi pourquoi la version du format se déduit d'elles et non
+        // du genre, un peu plus bas.
         out << qint32(filled.size());
         for (int slot : filled) {
             const Artwork art = face(slot);
@@ -383,6 +539,13 @@ bool CardSet::save(const QString &path, QString *why) const {
 
         out << qint32(m_backs.size());
         for (const auto &back : m_backs) out << back.first << back.second.kind << back.second.bytes;
+
+        // Le genre. Le bloc est omis pour un jeu de 52, qui est ce que vaut
+        // un genre absent : un fichier ordinaire reste ainsi octet pour
+        // octet celui qu'il était.
+        if (kind != DeckKind::Full) {
+            out << QByteArray(kKindTag) << kKindVersion << qint32(kind);
+        }
 
         // Les recettes des cases dessinées. Le bloc est omis quand il n'y en
         // a aucune, ce qui laisse le fichier identique à ce qu'il était.
@@ -396,6 +559,7 @@ bool CardSet::save(const QString &path, QString *why) const {
                     << how.style.cap << how.style.bell << how.style.back << how.style.backInk;
                 out << how.style.panelled << qreal(how.style.emblemSize);
                 out << how.style.glassy;
+                out << qint32(how.style.letters);
             }
         }
     }
@@ -412,7 +576,7 @@ bool CardSet::save(const QString &path, QString *why) const {
     QDataStream head(&file);
     head.setVersion(QDataStream::Qt_6_0);
     head.setByteOrder(QDataStream::LittleEndian);
-    head << kFormatVersion;
+    head << quint16(needsNewFormat ? kFormatVersion : kPlainVersion);
     // Les SVG et l'index ne sont pas compressés individuellement.
     head << qCompress(body, 9);
     file.close();
@@ -513,16 +677,34 @@ bool CardSet::load(const QString &path, QString *why) {
         return false;
     }
 
-    // Le bloc des recettes, s'il y en a un. Son absence est le cas ordinaire
-    // d'un jeu fabriqué à partir d'images, et celui de tous les jeux écrits
-    // avant ce bloc : les cases restent alors de simples images, que l'atelier
-    // ne propose pas de retoucher.
-    if (!in.atEnd()) {
+    // Les blocs de queue, s'il y en a. Leur absence est le cas ordinaire d'un
+    // jeu fabriqué à partir d'images, et celui de tous les jeux écrits avant
+    // eux.
+    //
+    // La boucle lit l'étiquette et la version de chaque bloc, puis traite
+    // ceux qu'elle connaît. Un bloc inconnu arrête la lecture : les blocs ne
+    // portant pas leur longueur, on ne saurait pas où reprendre.
+    while (!in.atEnd()) {
         QByteArray tag;
         qint32 blockVersion = 0;
+        in >> tag >> blockVersion;
+        if (in.status() != QDataStream::Ok) break;
+
+        if (tag == QByteArray(kKindTag)) {
+            qint32 named = 0;
+            in >> named;
+            if (in.status() != QDataStream::Ok) break;
+            if (named >= int(DeckKind::Full) && named <= int(DeckKind::Tarot)) {
+                read.kind = DeckKind(named);
+            }
+            continue;
+        }
+
+        if (tag != QByteArray(kRecipeTag)) break;
+
         qint32 count = 0;
-        in >> tag >> blockVersion >> count;
-        if (in.status() == QDataStream::Ok && tag == QByteArray(kRecipeTag) &&
+        in >> count;
+        if (in.status() == QDataStream::Ok &&
             blockVersion <= kRecipeVersion && count > 0 && count <= kSlots + 4096) {
             for (qint32 i = 0; i < count; ++i) {
                 qint32 key = 0;
@@ -537,6 +719,13 @@ bool CardSet::load(const QString &path, QString *why) {
                     how.style.emblemSize = emblem > 0.0 ? emblem : 1.0;
                 }
                 if (blockVersion >= 3) in >> how.style.glassy;
+                if (blockVersion >= 4) {
+                    qint32 letters = 0;
+                    in >> letters;
+                    if (letters >= 0 && letters < kRankLettersCount) {
+                        how.style.letters = RankLetters(letters);
+                    }
+                }
                 if (in.status() != QDataStream::Ok) break;
                 how.height = height > 0 ? height : kDrawnHeight;
                 // Une recette dont la case n'a rien reçu serait sans objet.
@@ -545,10 +734,15 @@ bool CardSet::load(const QString &path, QString *why) {
                 if (there) read.m_recipes.insert(key, how);
             }
         }
-        // Un bloc illisible ou inconnu n'invalide pas le fichier : les images,
-        // qui sont l'essentiel, ont déjà été lues.
-        in.resetStatus();
+        // Un bloc illisible n'invalide pas le fichier : les images, qui sont
+        // l'essentiel, ont déjà été lues. La lecture s'arrête là, faute de
+        // savoir où le bloc suivant commence.
+        if (in.status() != QDataStream::Ok) {
+            in.resetStatus();
+            break;
+        }
     }
+    in.resetStatus();
 
     read.m_path = path;
     if (read.name.trimmed().isEmpty()) read.name = QFileInfo(path).completeBaseName();

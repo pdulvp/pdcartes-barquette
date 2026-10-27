@@ -182,6 +182,18 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
     m_glassy->setCursor(Qt::PointingHandCursor);
     m_glassy->setFocusPolicy(Qt::NoFocus);
 
+    m_letters = new QComboBox(this);
+    for (int at = 0; at < kRankLettersCount; ++at) {
+        m_letters->addItem(rankLettersName(RankLetters(at)));
+    }
+    m_letters->setCurrentIndex(int(m_recipe.style.letters));
+    m_letters->setToolTip(tr("Les lettres du coin — as, valet, cavalier, dame, roi — selon "
+                             "le pays qui imprime la carte : A V C D R en France, "
+                             "A J Kn Q K dans le monde anglais, A B C D K en Allemagne, et "
+                             "1 S C D R en Espagne, où l'as est chiffré. Le cavalier ne "
+                             "paraît que sur un tarot."));
+    m_letters->setFocusPolicy(Qt::NoFocus);
+
     for (int at = 0; at < kFieldCount; ++at) {
         auto *swatch = new QToolButton(this);
         swatch->setToolTip(tr(kFields[at].tip));
@@ -260,12 +272,17 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         cells->setVerticalSpacing(compact ? 2 : 5);
         cells->addWidget(captionFor(panelAt), 0, 0);
         cells->addWidget(m_swatches.at(panelAt), 0, 1);
+        auto *lettersLabel = new QLabel(tr("Lettres"), this);
+        lettersLabel->setToolTip(m_letters->toolTip());
+        markHintLabel(lettersLabel);
+        cells->addWidget(lettersLabel, 1, 0);
+        cells->addWidget(m_letters, 1, 1);
         auto *label = new QLabel(tr("Taille de l'emblème"), this);
         label->setToolTip(m_emblem->toolTip());
         markHintLabel(label);
-        cells->addWidget(label, 1, 0);
-        cells->addWidget(m_emblem, 1, 1);
-        cells->addWidget(m_glassy, 2, 0, 1, 2);
+        cells->addWidget(label, 2, 0);
+        cells->addWidget(m_emblem, 2, 1);
+        cells->addWidget(m_glassy, 3, 0, 1, 2);
         // C'est la place restante qui s'étire, et non l'étiquette : les deux
         // champs restent côte à côte au lieu d'être jetés aux deux bords.
         cells->setColumnStretch(2, 1);
@@ -295,8 +312,22 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         // l'aperçu et les trois parties se rangent côte à côte.
         auto *across = new QHBoxLayout;
         across->setSpacing(12);
-        m_preview->setFixedWidth(74);
-        across->addWidget(m_preview);
+
+        // L'aperçu, et sous lui le choix du thème.
+        //
+        // Le thème vaut pour les couleurs, et sa place serait dans leur
+        // partie ; il est ici parce que la hauteur de la section est celle de
+        // sa plus haute colonne, et qu'une ligne de moins dans les couleurs
+        // est une ligne de moins sous la grille. La colonne de l'aperçu, elle,
+        // avait de la place : la carte y est dessinée à la hauteur disponible
+        // et laisse de l'air sur les côtés.
+        m_preview->setFixedWidth(126);
+        auto *first = new QVBoxLayout;
+        first->setSpacing(4);
+        first->addWidget(m_preview);
+        first->addLayout(themeRow());
+        first->addStretch();
+        across->addLayout(first);
 
         auto part = [this, &across](const QString &title, QLayout *block, int stretch) {
             auto *column = new QVBoxLayout;
@@ -307,11 +338,7 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
             across->addLayout(column, stretch);
         };
 
-        auto *colours = new QVBoxLayout;
-        colours->setSpacing(3);
-        colours->addLayout(themeRow());
-        colours->addLayout(colourBlock());
-        part(tr("Les couleurs"), colours, 1);
+        part(tr("Les couleurs"), colourBlock(), 1);
         part(tr("Les figures"), shapeBlock(), 0);
         part(tr("L'image"), outputBlock(), 0);
         rows->addLayout(across);
@@ -333,10 +360,12 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         const int at = std::clamp(m_theme->currentIndex(), 0, kThemeCount - 1);
         const bool panelled = m_recipe.style.panelled;
         const bool glassy = m_recipe.style.glassy;
+        const RankLetters letters = m_recipe.style.letters;
         const qreal emblem = m_recipe.style.emblemSize;
         m_recipe.style = CardStyle::fromPalette(paletteForHue(kThemes[at].hue, m_dark->isChecked()));
         m_recipe.style.panelled = panelled;
         m_recipe.style.glassy = glassy;
+        m_recipe.style.letters = letters;
         m_recipe.style.emblemSize = emblem;
         noteEdit();
     };
@@ -358,6 +387,11 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         m_recipe.style.glassy = on;
         noteEdit();
     });
+    connect(m_letters, &QComboBox::currentIndexChanged, this, [this](int at) {
+        if (at < 0 || at >= kRankLettersCount) return;
+        m_recipe.style.letters = RankLetters(at);
+        noteEdit();
+    });
 
     refreshSwatches();
 }
@@ -371,6 +405,7 @@ void CardStyleEditor::setRecipe(const DrawnRecipe &how) {
     m_emblem->setValue(int(std::round(m_recipe.style.emblemSize * 100.0)));
     m_panelled->setChecked(m_recipe.style.panelled);
     m_glassy->setChecked(m_recipe.style.glassy);
+    m_letters->setCurrentIndex(int(m_recipe.style.letters));
     m_quiet = false;
     m_preview->setRecipe(m_recipe);
     refreshSwatches();

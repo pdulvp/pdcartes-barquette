@@ -11,6 +11,7 @@
 class CardStyleEditor;
 class FaceGrid;
 class QCheckBox;
+class QComboBox;
 class QLabel;
 class QLineEdit;
 class QScrollArea;
@@ -44,6 +45,7 @@ private:
     QWidget *buildCardProperties(QWidget *parent);
 
     void startFresh();
+    void chooseKind(DeckKind kind);
     void openFile();
     bool saveFile();
     bool saveFileAs();
@@ -105,6 +107,8 @@ private:
     QLineEdit *m_name = nullptr;
     QLineEdit *m_author = nullptr;
     QLineEdit *m_note = nullptr;
+    QComboBox *m_kind = nullptr;
+    QLabel *m_kindNote = nullptr;
     QCheckBox *m_clearCorners = nullptr;
 
     QToolButton *m_newButton = nullptr;

@@ -35,6 +35,32 @@ class QPointF;
 // `CardSet::aspect()`.
 inline constexpr qreal kCardRatio = 71.0 / 96.0;
 
+// Les lettres qui désignent les rangs dans le coin d'une carte.
+//
+// Un jeu à enseignes françaises ne se lit pas de la même façon selon le pays
+// qui l'imprime : le valet est `V` en France, `J` dans le monde anglais, `B`
+// en Allemagne et `S` en Espagne. Le dessin suit donc une convention, et non
+// la seule que la France emploie.
+//
+// Les cinq lettres sont celles de l'as, du valet, du cavalier, de la dame et
+// du roi. Le cavalier n'apparaît que sur un tarot, mais chaque convention a
+// la sienne : une carte ne change pas de lettre selon le jeu où elle se
+// trouve.
+//
+// Ces lettres ne sont pas des chaînes à traduire : `A` n'est pas la
+// traduction française de `ace`, c'est la lettre qu'imprime une carte
+// française, et elle reste `A` quelle que soit la langue du programme.
+enum class RankLetters {
+    French = 0,  // A V C D R   -- as, valet, cavalier, dame, roi
+    English,     // A J Kn Q K  -- ace, jack, knight, queen, king
+    German,      // A B C D K   -- Ass, Bube, Cavall, Dame, König
+    // L'as espagnol est chiffré, et `C` y est le caballo, c'est-à-dire le
+    // cavalier. Le jeu espagnol n'ayant pas de dame, celle-ci emprunte `D` :
+    // lui laisser `C`, comme c'était le cas avant le tarot, donnerait deux
+    // `C` sur un même jeu.
+    Spanish,     // 1 S C D R   -- as, sota, caballo, dame empruntée, rey
+};
+
 // Rayon d'arrondi des coins d'une carte de cette taille. La fonction est
 // partagée afin qu'un aperçu de carte affiché ailleurs adopte exactement le
 // même arrondi.
@@ -98,6 +124,9 @@ struct CardStyle {
     // l'entoure.
     bool glassy = false;
 
+    // La convention qui donne les lettres du coin.
+    RankLetters letters = RankLetters::French;
+
     // Les couleurs qu'une palette donne à une carte. C'est le style des
     // cartes que `pdcartes-rami` dessine sur son tapis.
     static CardStyle fromPalette(const Palette &scheme);
@@ -140,9 +169,15 @@ inline constexpr qreal kEmblemLargest = 1.80;
 // plutôt que de `painter->font()`.
 QFont plainFont(const QPainter *painter);
 
-// Le rang écrit dans le coin d'une carte : « A », « 2 » à « 10 », « V »,
-// « D », « R », et l'étoile du joker.
-QString cardRankLabel(int rank);
+// Le rang écrit dans le coin d'une carte : la lettre que la convention donne
+// aux quatre rangs qui en portent une, le nombre pour les autres, et l'étoile
+// du joker.
+QString cardRankLabel(int rank, RankLetters letters = RankLetters::French);
+
+// Le nom d'une convention, pour une liste à choix : « Français (V D R) ».
+QString rankLettersName(RankLetters letters);
+// Les quatre conventions, dans l'ordre de l'énumération.
+inline constexpr int kRankLettersCount = 4;
 
 // Vrai pour le cœur et le carreau. La numérotation des couleurs est celle de
 // `CardSet` : pique, cœur, carreau, trèfle.

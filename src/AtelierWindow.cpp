@@ -15,6 +15,7 @@
 #include <QBuffer>
 #include <QCheckBox>
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -142,6 +143,18 @@ AtelierWindow::AtelierWindow(QWidget *parent) : QMainWindow(parent) {
     across->addWidget(buildLeft(), 3);
     across->addWidget(buildRight(), 2);
     rows->addLayout(across, 1);
+
+    // La section des propriétés passe sous les deux colonnes, et non dans
+    // celle de gauche.
+    //
+    // Elle décrit ce qui est choisi ailleurs : sa place est celle d'un
+    // bandeau d'inspection, en bordure basse de la fenêtre. Et sa largeur
+    // minimale -- un aperçu, trois parties de champs et deux boutons -- se
+    // compare ainsi à la fenêtre entière, au lieu d'être multipliée par cinq
+    // tiers en traversant la colonne de gauche. Posée dans cette colonne,
+    // elle faisait grandir la fenêtre de trois cents pixels au moment où
+    // elle apparaissait.
+    rows->addWidget(buildCardProperties(centre));
     setCentralWidget(centre);
 
     startFresh();
@@ -233,10 +246,28 @@ QWidget *AtelierWindow::buildLeft() {
     m_author->setPlaceholderText(tr("Auteur"));
     m_note = new QLineEdit(panel);
     m_note->setPlaceholderText(tr("Une ligne pour dire ce que c'est"));
+    m_kind = new QComboBox(panel);
+    for (const DeckKind kind : {DeckKind::Full, DeckKind::Short, DeckKind::Tarot}) {
+        m_kind->addItem(CardSet::kindName(kind), int(kind));
+    }
+    m_kind->setFocusPolicy(Qt::NoFocus);
+    m_kind->setToolTip(tr("Ce que le jeu contient, et donc les cases qu'il montre."));
+
     fields->addWidget(m_name, 2);
     fields->addWidget(m_author, 1);
     fields->addWidget(m_note, 3);
+    fields->addWidget(m_kind);
     rows->addLayout(fields);
+
+    m_kindNote = new QLabel(panel);
+    m_kindNote->setWordWrap(true);
+    markHintLabel(m_kindNote);
+    rows->addWidget(m_kindNote);
+
+    connect(m_kind, &QComboBox::currentIndexChanged, this, [this](int at) {
+        if (at < 0) return;
+        chooseKind(DeckKind(m_kind->itemData(at).toInt()));
+    });
 
     for (QLineEdit *field : {m_name, m_author, m_note}) {
         connect(field, &QLineEdit::textEdited, this, [this] {
@@ -253,9 +284,15 @@ QWidget *AtelierWindow::buildLeft() {
     m_gridRoom->setWidgetResizable(true);
     m_gridRoom->setFrameShape(QFrame::NoFrame);
     m_gridRoom->setWidget(m_grid);
+    // Une taille minimale explicite, et modeste.
+    //
+    // Sans elle, c'est celle de la grille qui vaut minimum pour la zone
+    // défilante, et de là pour la fenêtre : une grille de tarot réclamant
+    // sept rangées, la fenêtre grandissait jusqu'à les loger. Or une zone
+    // défilante est précisément ce qui dispense d'être assez grand ; la
+    // grille défile, et la fenêtre reste où l'on l'a mise.
+    m_gridRoom->setMinimumSize(360, 220);
     rows->addWidget(m_gridRoom, 1);
-
-    rows->addWidget(buildCardProperties(panel));
 
     m_hint = new QLabel(panel);
     m_hint->setWordWrap(true);
@@ -277,7 +314,9 @@ QWidget *AtelierWindow::buildLeft() {
 QWidget *AtelierWindow::buildCardProperties(QWidget *parent) {
     m_cardProps = new QWidget(parent);
     auto *rows = new QVBoxLayout(m_cardProps);
-    rows->setContentsMargins(0, 0, 0, 0);
+    // Les marges de la section sont celles des deux colonnes, qu'elle borde
+    // par en dessous : seule celle du haut est reprise par l'espacement.
+    rows->setContentsMargins(12, 0, 12, 12);
     rows->setSpacing(6);
     rows->addWidget(dialogSectionHeading(m_cardProps, tr("La carte dessinée")));
 
@@ -374,7 +413,26 @@ QWidget *AtelierWindow::buildDrawnTab() {
     connect(here, &QPushButton::clicked, this, &AtelierWindow::placeDrawnHere);
     connect(back, &QPushButton::clicked, this, &AtelierWindow::addDrawnBack);
 
-    return panel;
+    // L'onglet défile, et sa taille minimale est modeste.
+    //
+    // Il porte un aperçu et une vingtaine de champs : sa hauteur naturelle
+    // dépassait celle d'un écran, et c'est elle qui décidait de la hauteur
+    // minimale de la fenêtre. Celle-ci grandissait donc à l'ouverture, puis
+    // encore quand la section des propriétés apparaissait.
+    auto *room = new QScrollArea(this);
+    room->setWidgetResizable(true);
+    room->setFrameShape(QFrame::NoFrame);
+    room->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    room->setWidget(panel);
+    room->setMinimumSize(300, 240);
+    // Ni la fenêtre d'affichage ni le panneau ne peignent leur fond : c'est
+    // celui de la fenêtre principale qui doit se voir. Sans cela, la fenêtre
+    // d'affichage peint le sien, dans la palette du bureau et non dans celle
+    // que le programme s'est donnée — l'onglet entier passait au noir sur un
+    // bureau sombre.
+    room->viewport()->setAutoFillBackground(false);
+    panel->setAutoFillBackground(false);
+    return room;
 }
 
 QWidget *AtelierWindow::buildTrayTab() {
@@ -419,6 +477,7 @@ QWidget *AtelierWindow::buildTrayTab() {
     m_trayRoom->setFrameShape(QFrame::NoFrame);
     m_trayRoom->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_trayRoom->setWidget(m_tray);
+    m_trayRoom->setMinimumSize(240, 180);
     rows->addWidget(m_trayRoom, 1);
 
     auto *places = new QHBoxLayout;
@@ -470,9 +529,27 @@ void AtelierWindow::startFresh() {
     m_name->setText(m_set.name);
     m_author->clear();
     m_note->clear();
-    m_grid->setTarget(CardSet::slotFor(1, 0));
+    m_kind->setCurrentIndex(m_kind->findData(int(m_set.kind)));
+    m_grid->setTarget(CardSet::slotsOf(m_set.kind).value(0, CardSet::kJokerSlot));
     m_grid->reread();
     updateChrome();
+}
+
+// Le genre du jeu en cours.
+//
+// Les faces déjà posées ne sont pas effacées : un tarot ramené à un jeu de 52
+// garde ses cavaliers et ses atouts dans le fichier, simplement cachés, et
+// les retrouve si on lui rend son genre. Seules les cases que le genre
+// emploie sont montrées et comptées.
+void AtelierWindow::chooseKind(DeckKind kind) {
+    if (m_set.kind == kind) return;
+    m_set.kind = kind;
+    const QVector<int> wanted = CardSet::slotsOf(kind);
+    if (!FaceGrid::isBack(m_grid->target()) && !wanted.contains(m_grid->target())) {
+        m_grid->setTarget(wanted.value(0, CardSet::kJokerSlot));
+    }
+    m_grid->reread();
+    noteChange();
 }
 
 void AtelierWindow::openFile() {
@@ -497,6 +574,7 @@ bool AtelierWindow::openPath(const QString &path) {
     m_name->setText(m_set.name);
     m_author->setText(m_set.author);
     m_note->setText(m_set.note);
+    m_kind->setCurrentIndex(m_kind->findData(int(m_set.kind)));
     m_grid->reread();
     updateChrome();
     return true;
@@ -566,7 +644,7 @@ void AtelierWindow::installFile() {
     QString told = tr("« %1 » est installé dans :\n%2").arg(m_set.name, folder);
     if (!m_set.complete()) {
         told += tr("\n\n%1 cartes manquantes, qui resteront dessinées par le jeu.")
-                    .arg(CardSet::kSlots - m_set.filledFaces());
+                    .arg(m_set.slotCount() - m_set.filledFaces());
     }
     QMessageBox::information(this, tr("Atelier"), told);
 }
@@ -677,6 +755,8 @@ void AtelierWindow::importSet() {
     }
 
     QVector<DllImage> images;
+    // Toutes les cases, et non celles du genre en cours : on reprend les
+    // images d'un jeu qui peut être d'un autre genre que celui-ci.
     for (int slot = 0; slot < CardSet::kSlots; ++slot) {
         if (!read.hasFace(slot)) continue;
         const Artwork art = read.face(slot);
@@ -968,7 +1048,7 @@ void AtelierWindow::placeDrawnInto(int target, const DrawnRecipe &how) {
         m_set.setDrawnBack(FaceGrid::backOfTarget(target), drawnBackArt(how), how);
         return;
     }
-    m_set.setDrawnFace(target, drawnFaceArt(target, how), how);
+    m_set.setDrawnFace(target, drawnFaceArt(target, how, m_set.kind), how);
 }
 
 void AtelierWindow::fillWithDrawn(bool emptyOnly) {
@@ -978,9 +1058,9 @@ void AtelierWindow::fillWithDrawn(bool emptyOnly) {
     // d'une seconde, mais d'une seconde pendant laquelle la fenêtre ne
     // répond pas.
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    for (int slot = 0; slot < CardSet::kSlots; ++slot) {
+    for (const int slot : CardSet::slotsOf(m_set.kind)) {
         if (emptyOnly && m_set.hasFace(slot)) continue;
-        m_set.setDrawnFace(slot, drawnFaceArt(slot, how), how);
+        m_set.setDrawnFace(slot, drawnFaceArt(slot, how, m_set.kind), how);
     }
     // Un jeu a besoin d'un dos. « Remplir les cases vides » n'en ajoute un
     // que s'il n'y en a aucun ; « Tout remplir » refait le premier.
@@ -1052,8 +1132,9 @@ void AtelierWindow::updateChrome() {
     const int faces = m_set.filledFaces();
     m_tally->setText(tr("%1 / %2 faces · %3 dos")
                          .arg(faces)
-                         .arg(CardSet::kSlots)
+                         .arg(m_set.slotCount())
                          .arg(m_set.backCount()));
+    m_kindNote->setText(CardSet::kindNote(m_set.kind));
 
     QString where = m_path.isEmpty() ? tr("jamais enregistré") : QFileInfo(m_path).fileName();
     if (m_dirty) where += tr(" · modifié");
@@ -1114,6 +1195,11 @@ void AtelierWindow::applyColours() {
                       "QCheckBox::indicator:checked { background: %4; border: 1px solid %4; }"
                       "QScrollArea { border: 1px solid %3; border-radius: 8px;"
                       " background: transparent; }"
+                      // Le contenu d'une zone défilante, fenêtre d'affichage
+                      // comprise : sans cette règle, celle-ci peint son fond
+                      // dans la palette du bureau, et un contenu qui ne peint
+                      // pas le sien laisse voir ce fond-là.
+                      "QScrollArea > QWidget > QWidget { background: transparent; }"
                       "QScrollBar:vertical { background: transparent; width: 11px; }"
                       "QScrollBar::handle:vertical { background: %3; border-radius: 5px;"
                       " min-height: 28px; }"

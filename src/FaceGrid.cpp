@@ -61,8 +61,14 @@ void FaceGrid::setTarget(int target) {
 
 int FaceGrid::nextEmptyFace(int from) const {
     if (!m_set) return from;
-    for (int step = 1; step <= CardSet::kSlots; ++step) {
-        const int slot = (qMax(0, from) + step) % CardSet::kSlots;
+    // Le parcours suit l'ordre d'affichage du genre : une case qu'il
+    // n'emploie pas n'est pas une case à remplir.
+    const QVector<int> wanted = CardSet::slotsOf(m_set->kind);
+    if (wanted.isEmpty()) return from;
+    int start = wanted.indexOf(from);
+    if (start < 0) start = 0;
+    for (int step = 1; step <= wanted.size(); ++step) {
+        const int slot = wanted.at((start + step) % wanted.size());
         if (!m_set->hasFace(slot)) return slot;
     }
     return from;
@@ -77,11 +83,26 @@ void FaceGrid::relayout() {
     m_cells.clear();
     if (width() < 60 || height() < 60) return;
 
+    const DeckKind kind = m_set ? m_set->kind : DeckKind::Full;
     const int backs = m_set ? m_set->backCount() : 0;
-    // Une rangée par couleur, puis une dernière : le joker, les dos, et la
-    // case « + ».
+
+    // Les rangs que le genre emploie dans une couleur, dans l'ordre
+    // d'affichage : c'est la largeur des quatre premières rangées.
+    QVector<int> ranks;
+    for (int at = 1; at <= CardSet::kRanksInSuit; ++at) {
+        const int slot = CardSet::kJokerSlot + at;  // la première couleur
+        if (CardSet::kindUses(kind, slot)) ranks.append(CardSet::rankOfSlot(slot));
+    }
+
+    // Les atouts, s'il y en a, en rangées de la largeur des couleurs.
+    const int trumps = kind == DeckKind::Tarot ? CardSet::kTrumpCount : 0;
+    const int perRow = std::max(1, int(ranks.size()));
+    const int trumpRows = (trumps + perRow - 1) / perRow;
+
+    // La dernière rangée : le joker ou l'excuse, les dos, et la case « + ».
     const int lastRow = 1 + backs + 1;
-    const int columns = std::max(13, lastRow);
+    const int columns = std::max(perRow, lastRow);
+    const int rows = 4 + trumpRows + 1;
 
     qreal aspect = m_set ? m_set->aspect() : 0.0;
     if (aspect <= 0.01) aspect = kDefaultAspect;
@@ -90,11 +111,29 @@ void FaceGrid::relayout() {
     qreal cellWidth = room / columns;
     qreal cellHeight = cellWidth / aspect;
 
-    // Cinq rangées, chacune avec sa légende en dessous.
+    // La hauteur dont on dispose réellement.
+    //
+    // Ce n'est pas `height()` : la grille vit dans une zone défilante qui la
+    // redimensionne, et c'est la hauteur minimale fixée en fin de fonction
+    // qui décide alors de la sienne. Comparer la place voulue à sa propre
+    // hauteur revenait donc à la comparer à elle-même : la grille ne se
+    // resserrait jamais, et dès que la fenêtre manquait d'une vingtaine de
+    // pixels, la rangée du joker et des dos passait sous le bord avec un
+    // ascenseur pour aller la chercher. C'est la fenêtre d'affichage -- le
+    // parent, dans une zone défilante -- qui dit la place disponible.
+    const qreal visible = parentWidget() ? qreal(parentWidget()->height()) : qreal(height());
+
+    // Autant de rangées que le genre en demande, chacune avec sa légende en
+    // dessous.
     const qreal rowHeight = cellHeight + kCaption + kGap;
-    const qreal wanted = rowHeight * 5 + kGap;
-    if (wanted > height()) {
-        const qreal shrink = (height() - kGap - 5 * (kCaption + kGap)) / 5.0;
+    const qreal wanted = rowHeight * rows + kGap;
+    if (wanted > visible) {
+        // Deux interlignes, et non un : c'est la hauteur minimale fixée en fin
+        // de fonction qu'il faut ramener à la place disponible, et elle
+        // compte un interligne de plus que `wanted` -- celui du bas. Un seul
+        // laissait la grille dépasser de cinq pixels, et l'ascenseur
+        // apparaissait pour un contenu qui tenait.
+        const qreal shrink = (visible - 2.0 * kGap - 1.0 - rows * (kCaption + kGap)) / rows;
         cellHeight = std::max(24.0, shrink);
         cellWidth = cellHeight * aspect;
     }
@@ -102,22 +141,33 @@ void FaceGrid::relayout() {
     const qreal startX = m_labelWidth + kGap;
     qreal y = kGap;
     for (int suit = 0; suit < 4; ++suit) {
-        for (int rank = 1; rank <= 13; ++rank) {
+        for (int at = 0; at < ranks.size(); ++at) {
             Cell cell;
-            cell.target = CardSet::slotFor(rank, suit);
-            cell.box = QRectF(startX + (rank - 1) * (cellWidth + kGap), y, cellWidth, cellHeight);
-            cell.caption = CardSet::slotShort(cell.target).left(
-                CardSet::slotShort(cell.target).size() - 1);
+            cell.target = CardSet::slotFor(ranks.at(at), suit);
+            cell.box = QRectF(startX + at * (cellWidth + kGap), y, cellWidth, cellHeight);
+            const QString mark = CardSet::slotShort(cell.target);
+            cell.caption = mark.left(mark.size() - 1);
             m_cells.append(cell);
         }
         y += cellHeight + kCaption + kGap;
+    }
+
+    // Les atouts, numérotés de un à vingt et un.
+    for (int number = 1; number <= trumps; ++number) {
+        const int at = (number - 1) % perRow;
+        Cell cell;
+        cell.target = CardSet::slotForTrump(number);
+        cell.box = QRectF(startX + at * (cellWidth + kGap), y, cellWidth, cellHeight);
+        cell.caption = CardSet::slotShort(cell.target);
+        m_cells.append(cell);
+        if (at == perRow - 1 || number == trumps) y += cellHeight + kCaption + kGap;
     }
 
     qreal x = startX;
     Cell joker;
     joker.target = CardSet::kJokerSlot;
     joker.box = QRectF(x, y, cellWidth, cellHeight);
-    joker.caption = tr("joker");
+    joker.caption = kind == DeckKind::Tarot ? tr("excuse") : tr("joker");
     m_cells.append(joker);
     x += cellWidth + kGap * 3;
 
@@ -182,17 +232,20 @@ void FaceGrid::keyPressEvent(QKeyEvent *event) {
         Q_EMIT clearRequested(m_target);
         return;
     case Qt::Key_Right:
-        if (m_target >= 0 && m_target < CardSet::kSlots - 1) {
-            setTarget(m_target + 1);
-            Q_EMIT targetChosen(m_target);
-        }
+    case Qt::Key_Left: {
+        // Les flèches suivent l'ordre d'affichage du genre, et non les
+        // numéros de case : le cavalier vient entre le valet et la dame.
+        if (!m_set) return;
+        const QVector<int> wanted = CardSet::slotsOf(m_set->kind);
+        const int at = wanted.indexOf(m_target);
+        if (at < 0) return;
+        const int step = event->key() == Qt::Key_Right ? 1 : -1;
+        const int next = at + step;
+        if (next < 0 || next >= wanted.size()) return;
+        setTarget(wanted.at(next));
+        Q_EMIT targetChosen(m_target);
         return;
-    case Qt::Key_Left:
-        if (m_target > 0) {
-            setTarget(m_target - 1);
-            Q_EMIT targetChosen(m_target);
-        }
-        return;
+    }
     default:
         break;
     }
@@ -265,7 +318,14 @@ void FaceGrid::paintEvent(QPaintEvent *) {
                 } else if (slot > 0) {
                     inside = CardSet::slotShort(slot);
                 }
-                painter.drawText(cell.box, Qt::AlignCenter, inside);
+                if (slot > 0 && CardSet::isTrumpSlot(slot)) {
+                    // Un atout n'a pas d'enseigne : son chiffre romain seul
+                    // remplirait mal la case, le numéro l'accompagne.
+                    inside = QStringLiteral("%1\n%2")
+                                 .arg(CardSet::trumpOfSlot(slot))
+                                 .arg(CardSet::slotShort(slot));
+                }
+                painter.drawText(cell.box, Qt::AlignCenter | Qt::TextWordWrap, inside);
             }
         }
 
@@ -300,8 +360,17 @@ void FaceGrid::paintEvent(QPaintEvent *) {
     }
 
     // Les couleurs, dans la marge de gauche.
+    int firstRank = 1;
+    for (int at = 1; at <= CardSet::kRanksInSuit; ++at) {
+        if (CardSet::kindUses(m_set ? m_set->kind : DeckKind::Full, CardSet::kJokerSlot + at)) {
+            firstRank = CardSet::rankOfSlot(CardSet::kJokerSlot + at);
+            break;
+        }
+    }
     for (int suit = 0; suit < 4; ++suit) {
-        const int slot = CardSet::slotFor(1, suit);
+        // La première case de la rangée, quel que soit le rang par lequel le
+        // genre la commence : un jeu de 32 commence au sept.
+        const int slot = CardSet::slotFor(firstRank, suit);
         const Cell *first = nullptr;
         for (const Cell &cell : m_cells) {
             if (cell.target == slot) first = &cell;

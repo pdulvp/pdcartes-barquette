@@ -49,11 +49,16 @@ QSize drawnCardSize(int height) {
     return QSize(std::max(1, int(std::round(tall * kCardRatio))), tall);
 }
 
-Artwork drawnFaceArt(int slot, const DrawnRecipe &how) {
+Artwork drawnFaceArt(int slot, const DrawnRecipe &how, DeckKind kind) {
     if (slot < 0 || slot >= CardSet::kSlots) return {};
+    // La case du joker est l'excuse dans un tarot. Le dessin le reconnaît à
+    // la couleur des atouts posée sur un rang nul.
+    const int suit = (slot == CardSet::kJokerSlot && kind == DeckKind::Tarot)
+                         ? CardSet::kTrumpSuit
+                         : CardSet::suitOfSlot(slot);
     Artwork art;
     art.kind = "png";
-    art.bytes = renderOne(CardSet::rankOfSlot(slot), CardSet::suitOfSlot(slot), false, how);
+    art.bytes = renderOne(CardSet::rankOfSlot(slot), suit, false, how);
     if (art.bytes.isEmpty()) return {};
     return art;
 }
@@ -66,14 +71,15 @@ Artwork drawnBackArt(const DrawnRecipe &how) {
     return art;
 }
 
-CardSet drawnCardSet(const DrawnRecipe &how) {
+CardSet drawnCardSet(const DrawnRecipe &how, DeckKind kind) {
     CardSet set;
+    set.kind = kind;
     set.name = QCoreApplication::translate("drawn", "Le jeu dessiné");
     set.note = QCoreApplication::translate(
         "drawn", "Les cartes que la cartothèque dessine elle-même, rendues en images.");
 
-    for (int slot = 0; slot < CardSet::kSlots; ++slot) {
-        set.setDrawnFace(slot, drawnFaceArt(slot, how), how);
+    for (const int slot : CardSet::slotsOf(kind)) {
+        set.setDrawnFace(slot, drawnFaceArt(slot, how, kind), how);
     }
     set.addDrawnBack(QCoreApplication::translate("drawn", "Treillis"), drawnBackArt(how), how);
     return set;

@@ -1,5 +1,11 @@
 #include "CardArt.h"
 
+// Pour la numérotation des rangs et des couleurs, et les chiffres romains des
+// atouts. `CardSet.h` inclut `CardArt.h`, et non l'inverse : l'inclure ici ne
+// fait donc pas de cycle, et évite de recopier deux constantes qui
+// divergeraient.
+#include "CardSet.h"
+
 #include <QBrush>
 #include <QCoreApplication>
 #include <QFont>
@@ -26,6 +32,39 @@ constexpr int kAs = 1;
 constexpr int kValet = 11;
 constexpr int kDame = 12;
 constexpr int kRoi = 13;
+
+// Les seize lettres des quatre conventions, dans l'ordre de `RankLetters` :
+// l'as, le valet, la dame et le roi. Une convention de plus tient en une
+// ligne de plus.
+struct LetterSet {
+    const char *ace;
+    const char *jack;
+    const char *knight;  // le cavalier, que seul un tarot porte
+    const char *queen;
+    const char *king;
+    const char *name;
+};
+
+// Les cinq lettres d'une convention : l'as, le valet, le cavalier, la dame et
+// le roi. Le nom affiché montre les quatre dernières, celles qui distinguent
+// une convention d'une autre.
+//
+// La dame espagnole porte `D` et non `C` : `C` est le caballo, c'est-à-dire
+// le cavalier, et un tarot espagnol montrerait sinon deux `C`. Le jeu
+// espagnol n'ayant pas de dame, `D` est un emprunt — mais un emprunt sans
+// ambiguïté.
+const LetterSet kLetterSets[kRankLettersCount] = {
+    {"A", "V", "C", "D", "R", "Français (V C D R)"},
+    {"A", "J", "Kn", "Q", "K", "Anglais (J Kn Q K)"},
+    {"A", "B", "C", "D", "K", "Allemand (B C D K)"},
+    {"1", "S", "C", "D", "R", "Espagnol (S C D R)"},
+};
+
+const LetterSet &letterSet(RankLetters letters) {
+    const int at = int(letters);
+    if (at < 0 || at >= kRankLettersCount) return kLetterSets[0];
+    return kLetterSets[at];
+}
 
 // Les couleurs, dans l'ordre de `CardSet`.
 constexpr int kPique = 0;
@@ -327,6 +366,31 @@ void paintCourtMark(QPainter *painter, const QRectF &box, int rank, const QColor
         painter->drawRect(QRectF(-0.66, 0.42, 1.32, 0.16));
         painter->setBrush(body);
         painter->drawRect(QRectF(-0.72, 0.38, 1.44, 0.24));
+    } else if (rank == CardSet::kKnightRank) {
+        // Cavalier : une tête de cheval de profil, tournée vers la gauche.
+        //
+        // C'est le cavalier qu'on reconnaît le plus vite à quarante pixels :
+        // un homme à cheval s'y réduirait à une tache, là où une tête de
+        // cheval garde une silhouette que rien d'autre dans le jeu n'évoque.
+        QPainterPath horse;
+        horse.moveTo(-0.84, 0.18);                                  // le bout du museau
+        horse.cubicTo(-0.76, 0.38, -0.60, 0.46, -0.42, 0.42);       // les lèvres, le menton
+        horse.cubicTo(-0.18, 0.38, -0.06, 0.52, -0.02, 0.78);       // la gorge
+        horse.lineTo(0.54, 0.78);                                   // le bas de l'encolure
+        horse.cubicTo(0.52, 0.24, 0.42, -0.16, 0.28, -0.44);        // la nuque
+        horse.lineTo(0.36, -0.80);                                  // l'oreille arrière
+        horse.lineTo(0.08, -0.54);
+        horse.lineTo(0.02, -0.88);                                  // l'oreille avant
+        horse.lineTo(-0.18, -0.48);
+        horse.cubicTo(-0.44, -0.38, -0.70, -0.14, -0.80, 0.02);     // le chanfrein
+        horse.closeSubpath();
+        painter->drawPath(horse);
+
+        // L'œil et le naseau, évidés comme le bandeau de la couronne.
+        painter->setBrush(hollow);
+        painter->setPen(Qt::NoPen);
+        painter->drawEllipse(QPointF(-0.20, -0.14), 0.085, 0.085);
+        painter->drawEllipse(QPointF(-0.66, 0.16), 0.055, 0.055);
     } else {
         // Valet : une fleur de lis.
         QPainterPath lis;
@@ -450,14 +514,83 @@ QFont indexFont(const QFont &base, qreal height, bool bold) {
 // son filet sont tracés par l'appelant.
 void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
                       const CardStyle &style) {
-    const QColor ink = (rank != kJoker && cardSuitIsRed(suit)) ? style.red : style.ink;
+    // Un atout et le joker n'ont pas de couleur : ils prennent l'encre des
+    // enseignes noires.
+    const QColor ink = (rank != kJoker && suit != CardSet::kTrumpSuit && cardSuitIsRed(suit))
+                           ? style.red
+                           : style.ink;
 
     // La marge intérieure, d'où partent le coin et le joker. Elle est étroite :
     // une marge large laissait la carte vide en son milieu.
     const QRectF inner = box.adjusted(box.width() * 0.045, box.height() * 0.040,
                                       -box.width() * 0.045, -box.height() * 0.040);
 
+    if (rank != kJoker && suit == CardSet::kTrumpSuit) {
+        // Un atout : son numéro, en chiffres romains sur le panneau des
+        // figures et en chiffres arabes dans les coins. Les vingt et une
+        // figures traditionnelles -- le Bateleur, la Papesse -- ne sont pas
+        // dessinées : c'est un travail d'illustration. Le numéro suffit à
+        // faire un tarot utilisable, dont les atouts se remplacent ensuite
+        // par de vraies images.
+        const QString roman = CardSet::romanNumber(rank);
+        const QRectF panel = emblemPanelBox(box);
+        if (style.panelled && panel.width() > 11.0 && panel.height() > 14.0) {
+            paintEmblemPanel(painter, panel, ink, style.panel);
+        }
+        if (panel.width() > 11.0 && panel.height() > 14.0) {
+            const QRectF field = emblemFieldOf(panel);
+            QFont number = plainFont(painter);
+            number.setBold(true);
+            number.setPixelSize(std::max(9, int(field.height() * 0.30 *
+                                                std::clamp(style.emblemSize, kEmblemSmallest,
+                                                           kEmblemLargest))));
+            // Les chiffres romains des atouts vont jusqu'à quatre signes :
+            // la police est resserrée jusqu'à ce que « XVIII » tienne.
+            while (number.pixelSize() > 9 &&
+                   QFontMetricsF(number).horizontalAdvance(roman) > field.width()) {
+                number.setPixelSize(number.pixelSize() - 1);
+            }
+            painter->setFont(number);
+            painter->setPen(ink);
+            painter->drawText(field, Qt::AlignCenter, roman);
+        }
+
+        // Les coins : le numéro en chiffres arabes, tête-bêche comme le rang
+        // d'une carte ordinaire. Un atout n'a pas de couleur, et son coin ne
+        // porte donc pas de symbole.
+        const qreal indexWidth = box.width() * 0.175;
+        const qreal indexHeight = std::max(8.0, box.height() * 0.155);
+        const QRectF inner = box.adjusted(box.width() * 0.045, box.height() * 0.040,
+                                          -box.width() * 0.045, -box.height() * 0.040);
+        const QString arabic = QString::number(rank);
+        QFont mark = indexFont(plainFont(painter), indexHeight, true);
+        const qreal wide = QFontMetricsF(mark).horizontalAdvance(arabic);
+        if (wide > indexWidth) {
+            mark = indexFont(plainFont(painter),
+                             indexHeight * std::max(0.66, indexWidth / wide), true);
+        }
+        painter->setFont(mark);
+        for (int turn = 0; turn < 2; ++turn) {
+            painter->save();
+            if (turn == 1) {
+                painter->translate(box.center());
+                painter->rotate(180);
+                painter->translate(-box.center());
+            }
+            painter->setPen(ink);
+            painter->drawText(QRectF(inner.left(), inner.top(), indexWidth, indexHeight),
+                              Qt::AlignHCenter | Qt::AlignVCenter, arabic);
+            painter->restore();
+            if (box.width() < 40) break;
+        }
+        return;
+    }
+
     if (rank == kJoker) {
+        // Le joker, ou l'excuse du tarot : c'est la même carte à la même
+        // place, et le même dessin lui va. Seul le mot écrit dessous change,
+        // et c'est la couleur des atouts qui le dit.
+        //
         // Le joker porte le panneau des figures : lui non plus ne montre pas
         // de symboles, et il remplissait jusqu'au bord une carte où les
         // treize autres gardent une marge. Il est un peu moins haut que celui
@@ -480,7 +613,10 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
             painter->setPen(style.cap);
             painter->drawText(QRectF(box.left(), box.top() + box.height() * 0.820,
                                      box.width(), box.height() * 0.110),
-                              Qt::AlignCenter, QCoreApplication::translate("cardart", "Joker"));
+                              Qt::AlignCenter,
+                              suit == CardSet::kTrumpSuit
+                                  ? QCoreApplication::translate("cardart", "Excuse")
+                                  : QCoreApplication::translate("cardart", "Joker"));
         }
         return;
     }
@@ -497,7 +633,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
     // peu plus petit pour y tenir — comme sur une carte imprimée.
     const qreal indexWidth = box.width() * 0.175;
     const qreal indexHeight = std::max(8.0, box.height() * 0.155);
-    const QString label = cardRankLabel(rank);
+    const QString label = cardRankLabel(rank, style.letters);
     QFont rankFont = indexFont(plainFont(painter), indexHeight, true);
     const qreal wanted = QFontMetricsF(rankFont).horizontalAdvance(label);
     if (wanted > indexWidth) {
@@ -623,7 +759,7 @@ bool CardStyle::operator==(const CardStyle &other) const {
            panel == other.panel && cap == other.cap && bell == other.bell &&
            back == other.back && backInk == other.backInk &&
            panelled == other.panelled && glassy == other.glassy &&
-           qFuzzyCompare(emblemSize, other.emblemSize);
+           letters == other.letters && qFuzzyCompare(emblemSize, other.emblemSize);
 }
 
 QFont plainFont(const QPainter *painter) {
@@ -641,16 +777,22 @@ QFont plainFont(const QPainter *painter) {
     return font;
 }
 
-QString cardRankLabel(int rank) {
+QString cardRankLabel(int rank, RankLetters letters) {
+    const LetterSet &set = letterSet(letters);
     switch (rank) {
     case kJoker: return QStringLiteral("★");
-    case kAs: return QCoreApplication::translate("cardart", "A");
-    case kValet: return QCoreApplication::translate("cardart", "V");
-    case kDame: return QCoreApplication::translate("cardart", "D");
-    case kRoi: return QCoreApplication::translate("cardart", "R");
+    case kAs: return QString::fromLatin1(set.ace);
+    case kValet: return QString::fromLatin1(set.jack);
+    case kDame: return QString::fromLatin1(set.queen);
+    case kRoi: return QString::fromLatin1(set.king);
+    case CardSet::kKnightRank: return QString::fromLatin1(set.knight);
     default: break;
     }
     return QString::number(rank);
+}
+
+QString rankLettersName(RankLetters letters) {
+    return QCoreApplication::translate("cardart", letterSet(letters).name);
 }
 
 bool cardSuitIsRed(int suit) { return suit == kCoeur || suit == kCarreau; }

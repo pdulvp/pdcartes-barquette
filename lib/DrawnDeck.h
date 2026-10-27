@@ -20,10 +20,13 @@ QSize drawnCardSize(int height);
 // L'image d'une face, et celle d'un dos. `slot` est une case de `CardSet`.
 // Vide si le rendu échoue, ce qui ne devrait se produire qu'à défaut de
 // mémoire.
-Artwork drawnFaceArt(int slot, const DrawnRecipe &how);
+//
+// Le genre n'entre en jeu que pour la case du joker : dans un tarot, c'est
+// l'excuse, et le mot écrit sous le bonnet change.
+Artwork drawnFaceArt(int slot, const DrawnRecipe &how, DeckKind kind = DeckKind::Full);
 Artwork drawnBackArt(const DrawnRecipe &how);
 
-// Le jeu complet : les cinquante-trois faces et un dos, avec leurs recettes.
-// Le nom, l'auteur et la note sont laissés à l'appelant, qui sait pour quel
-// programme il le fabrique.
-CardSet drawnCardSet(const DrawnRecipe &how);
+// Le jeu complet d'un genre : toutes ses faces et un dos, avec leurs
+// recettes. Le nom, l'auteur et la note sont laissés à l'appelant, qui sait
+// pour quel programme il le fabrique.
+CardSet drawnCardSet(const DrawnRecipe &how, DeckKind kind = DeckKind::Full);

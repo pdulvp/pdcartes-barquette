@@ -39,6 +39,8 @@ void CardDecks::refresh() {
         "decks", "Celui que le programme dessine lui-même.");
     drawn.builtIn = true;
     drawn.complete = true;
+    drawn.slotCount = CardSet::slotCountOf(DeckKind::Full);
+    drawn.faces = drawn.slotCount;
     m_entries.append(drawn);
 
     QDir dir(folder());
@@ -59,7 +61,9 @@ void CardDecks::refresh() {
             entry.author = set.author;
             entry.note = set.note;
             entry.path = file.absoluteFilePath();
+            entry.kind = set.kind;
             entry.faces = set.filledFaces();
+            entry.slotCount = set.slotCount();
             entry.backs = set.backCount();
             entry.complete = set.complete();
             m_entries.append(entry);
@@ -70,6 +74,14 @@ void CardDecks::refresh() {
     m_loaded.clear();
     m_tried = false;
     m_current = CardSet();
+}
+
+QVector<DeckEntry> CardDecks::entriesOfKind(DeckKind kind) const {
+    QVector<DeckEntry> wanted;
+    for (const DeckEntry &entry : m_entries) {
+        if (entry.kind == kind) wanted.append(entry);
+    }
+    return wanted;
 }
 
 const DeckEntry *CardDecks::entry(const QString &id) const {

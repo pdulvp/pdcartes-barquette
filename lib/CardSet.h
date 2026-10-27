@@ -22,7 +22,9 @@
 //     QString nom, auteur, note
 //     qint32  largeur, hauteur   la taille de référence d'une face
 //     qint32  nombre de faces    puis, pour chacune :
-//         qint8 rang (0 = joker, 1 = as … 13 = roi), qint8 couleur,
+//         qint8 rang (0 = joker, 1 = as … 13 = roi, 14 = cavalier),
+//         qint8 couleur (0-3 les enseignes, 4 les atouts, dont le rang est
+//                        alors le numéro de 1 à 21),
 //         QByteArray type d'image (« png », « svg », « bmp », « jpg »),
 //         QByteArray octets
 //     qint32  nombre de dos      puis, pour chacun :
@@ -31,17 +33,31 @@
 // Les images sont stockées telles quelles : un PNG reste un PNG, un SVG reste
 // un SVG.
 //
-// Après les dos vient un bloc facultatif, les recettes des cases dessinées :
+// Après les dos viennent des blocs facultatifs, chacun précédé de son
+// étiquette et de sa version :
 //
-//     QByteArray « recettes »    l'étiquette du bloc
-//     qint32                     la version du bloc, 1 pour l'instant
-//     qint32  nombre de recettes puis, pour chacune :
-//         qint32 case, qint32 hauteur de rendu, puis huit QColor
+//     QByteArray « genre »       qint32 version, qint32 genre
+//     QByteArray « recettes »    qint32 version, qint32 nombre, puis pour
+//                                chacune : qint32 case, qint32 hauteur de
+//                                rendu, et les couleurs et réglages du style
 //
-// Le bloc est à la fin, et la version du format reste 1 : un programme écrit
-// avant lui s'arrête aux dos et ignore ce qui suit. Un jeu fabriqué
-// aujourd'hui s'ouvre donc dans une version déjà installée, laquelle y voit
-// de simples images -- ce qu'elles sont.
+// Les blocs sont à la fin, et la version du format reste 1 pour les jeux de
+// 52 et de 32 : un programme écrit avant eux s'arrête aux dos et ignore ce
+// qui suit. Un tel jeu s'ouvre donc dans une version déjà installée, laquelle
+// y voit de simples images -- ce qu'elles sont.
+//
+// Le format 2 est réservé aux fichiers qui contiennent une carte que le
+// format 1 ne sait pas désigner : un cavalier, de rang 14, ou un atout, de
+// couleur 4. Un lecteur ancien ramène l'un et l'autre dans les bornes qu'il
+// connaît -- le cavalier devient le roi de sa couleur, l'atout devient un
+// trèfle -- et montrerait donc de fausses cartes sans signaler d'erreur. Le
+// format 2 le lui fait refuser avec un message juste.
+//
+// C'est le contenu qui décide, et non le genre déclaré : celui-ci dit comment
+// présenter le jeu, pas ce qu'il contient. Un tarot ramené à un jeu de 52
+// garde ses cavaliers et ses atouts, cachés mais écrits, et reste donc du
+// format 2 ; un tarot vide, lui, s'écrit en format 1, n'ayant rien que le
+// format 1 ne sache dire.
 
 struct Artwork {
     QByteArray kind;    // « png », « svg », « bmp », « jpg »
@@ -55,20 +71,65 @@ struct Artwork {
     static Artwork fromFile(const QString &path, QString *why = nullptr);
 };
 
+// Le genre d'un jeu : ce qu'il contient, et donc les cases qu'il emploie.
+//
+// Les trois genres partagent la même numérotation de cases ; le genre ne dit
+// que lesquelles sont employées. La dame de cœur est donc la même case dans
+// un jeu de 52 et dans un tarot.
+enum class DeckKind {
+    Full = 0,  // 52 cartes et le joker : l'as au roi, quatre couleurs
+    Short,     // 32 cartes et le joker : du sept à l'as
+    Tarot,     // 78 cartes : quatre couleurs de 14, 21 atouts, l'excuse
+};
+
 class CardSet {
 public:
-    // 53 emplacements : le joker, puis les 52 cartes.
-    static constexpr int kSlots = 53;
+    // L'espace des cases, celui du plus grand genre : l'excuse ou le joker,
+    // puis quatre couleurs de quatorze rangs, puis les vingt et un atouts.
+    // Les genres plus petits laissent les cases qu'ils n'emploient pas
+    // vides, et ne les montrent pas.
+    static constexpr int kRanksInSuit = 14;
+    static constexpr int kTrumpCount = 21;
+    static constexpr int kSlots = 1 + 4 * kRanksInSuit + kTrumpCount;  // 78
     static constexpr int kJokerSlot = 0;
+    // La couleur sous laquelle les atouts sont rangés : une cinquième, qui
+    // n'est pas une enseigne.
+    static constexpr int kTrumpSuit = 4;
+    // Le rang du cavalier. Il vient après le roi et non entre le valet et la
+    // dame : les rangs sont écrits dans le fichier, et en insérer un au
+    // milieu aurait décalé la dame et le roi de tous les jeux déjà
+    // fabriqués. Il s'affiche en revanche à sa place, `slotFor()` suivant
+    // l'ordre d'affichage et non celui des rangs.
+    static constexpr int kKnightRank = 14;
 
-    // `rank` va de 1 (l'as) à 13 (le roi), `suit` de 0 à 3 dans l'ordre
-    // pique, cœur, carreau, trèfle. Chaque programme convertit sa propre
-    // numérotation vers celle-ci.
+    // `rank` va de 1 (l'as) à 13 (le roi), plus 14 pour le cavalier ; `suit`
+    // de 0 à 3 dans l'ordre pique, cœur, carreau, trèfle, plus 4 pour les
+    // atouts, dont le rang est le numéro, de 1 à 21. Chaque programme
+    // convertit sa propre numérotation vers celle-ci.
     static int slotFor(int rank, int suit);
     static int rankOfSlot(int slot);
     static int suitOfSlot(int slot);
-    static QString slotName(int slot);       // « roi de cœur »
-    static QString slotShort(int slot);      // « R♥ »
+    static QString slotName(int slot);       // « roi de cœur », « atout 7 »
+    static QString slotShort(int slot);      // « R♥ », « VII »
+    static bool isTrumpSlot(int slot);
+    // Le numéro d'un atout, de 1 à 21 ; zéro si la case n'en est pas un.
+    static int trumpOfSlot(int slot);
+    static int slotForTrump(int number);
+    // Le numéro d'un atout en chiffres romains : « XXI ».
+    static QString romanNumber(int number);
+
+    // Le genre, et ce qu'il entraîne.
+    DeckKind kind = DeckKind::Full;
+    static QString kindName(DeckKind kind);       // « Jeu de 52 »
+    static QString kindNote(DeckKind kind);       // la phrase qui l'explique
+    static int slotCountOf(DeckKind kind);        // 53, 33 ou 78
+    // Les cases de ce genre, dans l'ordre d'affichage : le joker ou l'excuse
+    // en dernier, après les couleurs et les atouts.
+    static QVector<int> slotsOf(DeckKind kind);
+    static bool kindUses(DeckKind kind, int slot);
+
+    int slotCount() const { return slotCountOf(kind); }
+    bool usesSlot(int slot) const { return kindUses(kind, slot); }
 
     QString name;
     QString author;
@@ -76,8 +137,10 @@ public:
     QSize artSize = QSize(0, 0);
 
     bool isEmpty() const;
+    // Les faces posées dans les cases que le genre emploie. Une face rangée
+    // hors du genre -- un cavalier dans un jeu de 52 -- n'est pas comptée.
     int filledFaces() const;
-    bool complete() const;                   // les 53 emplacements remplis
+    bool complete() const;                   // toutes les cases du genre remplies
     // Largeur / hauteur d'une face, pour que l'affichage adopte la proportion
     // des cartes qu'on lui donne. Nul quand le jeu est vide.
     qreal aspect() const;

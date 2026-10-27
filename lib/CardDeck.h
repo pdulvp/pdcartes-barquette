@@ -19,7 +19,9 @@ struct DeckEntry {
     QString note;
     QString path;        // vide pour le jeu dessiné
     bool builtIn = false;
+    DeckKind kind = DeckKind::Full;
     int faces = 0;
+    int slotCount = 0;   // les cases que son genre emploie
     int backs = 0;
     bool complete = false;
 };
@@ -30,6 +32,10 @@ public:
 
     // Relit le dossier : au démarrage, et après l'installation d'un jeu.
     void refresh();
+
+    // Les jeux d'un genre donné. Un programme de rami n'offre que les jeux de
+    // 52 : un tarot n'a pas les bonnes cartes, un jeu de 32 n'en a pas assez.
+    QVector<DeckEntry> entriesOfKind(DeckKind kind) const;
 
     const QVector<DeckEntry> &entries() const { return m_entries; }
     const DeckEntry *entry(const QString &id) const;

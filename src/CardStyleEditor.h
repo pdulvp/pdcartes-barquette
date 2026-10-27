@@ -61,4 +61,5 @@ private:
     QCheckBox *m_panelled = nullptr;
     QSpinBox *m_emblem = nullptr;
     QCheckBox *m_glassy = nullptr;
+    QComboBox *m_letters = nullptr;
 };
