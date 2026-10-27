@@ -247,6 +247,12 @@ QWidget *AtelierWindow::buildLeft() {
     m_author->setPlaceholderText(tr("Auteur"));
     m_note = new QLineEdit(panel);
     m_note->setPlaceholderText(tr("Une ligne pour dire ce que c'est"));
+    m_licence = new QLineEdit(panel);
+    m_licence->setPlaceholderText(tr("Licence"));
+    m_licence->setToolTip(tr("La licence du jeu, si on veut lui en donner une : « CC BY-SA "
+                             "4.0 », « Domaine public », un nom de licence ou une adresse. "
+                             "Elle est écrite dans le fichier et montrée par le jeu de rami "
+                             "sous le nom du jeu choisi."));
     m_kind = new QComboBox(panel);
     for (const DeckKind kind : {DeckKind::Full, DeckKind::Short, DeckKind::Tarot}) {
         m_kind->addItem(CardSet::kindName(kind), int(kind));
@@ -257,6 +263,7 @@ QWidget *AtelierWindow::buildLeft() {
     fields->addWidget(m_name, 2);
     fields->addWidget(m_author, 1);
     fields->addWidget(m_note, 3);
+    fields->addWidget(m_licence, 1);
     fields->addWidget(m_kind);
     rows->addLayout(fields);
 
@@ -270,11 +277,12 @@ QWidget *AtelierWindow::buildLeft() {
         chooseKind(DeckKind(m_kind->itemData(at).toInt()));
     });
 
-    for (QLineEdit *field : {m_name, m_author, m_note}) {
+    for (QLineEdit *field : {m_name, m_author, m_note, m_licence}) {
         connect(field, &QLineEdit::textEdited, this, [this] {
             m_set.name = m_name->text();
             m_set.author = m_author->text();
             m_set.note = m_note->text();
+            m_set.licence = m_licence->text();
             noteChange();
         });
     }
@@ -539,6 +547,7 @@ void AtelierWindow::startFresh() {
     m_name->setText(m_set.name);
     m_author->clear();
     m_note->clear();
+    m_licence->clear();
     m_kind->setCurrentIndex(m_kind->findData(int(m_set.kind)));
     m_grid->setTarget(CardSet::slotsOf(m_set.kind).value(0, CardSet::kJokerSlot));
     m_grid->reread();
@@ -584,6 +593,7 @@ bool AtelierWindow::openPath(const QString &path) {
     m_name->setText(m_set.name);
     m_author->setText(m_set.author);
     m_note->setText(m_set.note);
+    m_licence->setText(m_set.licence);
     m_kind->setCurrentIndex(m_kind->findData(int(m_set.kind)));
     m_grid->reread();
     updateChrome();
@@ -1218,6 +1228,7 @@ void AtelierWindow::noteChange() {
     m_set.name = m_name->text();
     m_set.author = m_author->text();
     m_set.note = m_note->text();
+    m_set.licence = m_licence->text();
     m_dirty = true;
     updateChrome();
 }

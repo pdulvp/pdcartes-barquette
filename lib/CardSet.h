@@ -134,6 +134,11 @@ public:
     QString name;
     QString author;
     QString note;
+    // La licence du jeu, facultative et en texte libre : « CC BY-SA 4.0 »,
+    // « Domaine public », un nom de licence ou une adresse. Une liste à choix
+    // imposerait un catalogue à tenir, et n'aurait pas la case qu'il faut le
+    // jour où quelqu'un veut autre chose.
+    QString licence;
     QSize artSize = QSize(0, 0);
 
     bool isEmpty() const;

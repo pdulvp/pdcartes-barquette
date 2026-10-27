@@ -33,6 +33,18 @@ constexpr quint16 kPlainVersion = 1;
 const char kKindTag[] = "genre";
 constexpr qint32 kKindVersion = 1;
 
+// L'étiquette du bloc de la licence.
+//
+// Il est écrit en dernier, après les recettes. Un lecteur qui rencontre une
+// étiquette qu'il ne connaît pas s'arrête, les blocs ne portant pas leur
+// longueur : placée avant les recettes, la licence les ferait perdre à un
+// lecteur écrit avant elle.
+//
+// La licence n'est pas dans l'en-tête parce que celui-ci est une suite de
+// champs lue par position : l'y ajouter décalerait tout ce qui suit.
+const char kLicenceTag[] = "licence";
+constexpr qint32 kLicenceVersion = 1;
+
 const char kRecipeTag[] = "recettes";
 // Les versions du bloc se lisent en cascade, chacune n'ajoutant que ses
 // champs à la fin de chaque recette :
@@ -576,6 +588,12 @@ bool CardSet::save(const QString &path, QString *why) const {
                 out << how.style.emblemShown << how.style.pipsShown;
             }
         }
+
+        // La licence, en dernier. Le bloc est omis quand il n'y en a pas, ce
+        // qui laisse le fichier identique à ce qu'il était.
+        if (!licence.trimmed().isEmpty()) {
+            out << QByteArray(kLicenceTag) << kLicenceVersion << licence;
+        }
     }
 
     QFile file(path);
@@ -711,6 +729,14 @@ bool CardSet::load(const QString &path, QString *why) {
             if (named >= int(DeckKind::Full) && named <= int(DeckKind::Tarot)) {
                 read.kind = DeckKind(named);
             }
+            continue;
+        }
+
+        if (tag == QByteArray(kLicenceTag)) {
+            QString said;
+            in >> said;
+            if (in.status() != QDataStream::Ok) break;
+            read.licence = said;
             continue;
         }
 

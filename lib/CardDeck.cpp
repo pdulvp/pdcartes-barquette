@@ -60,6 +60,7 @@ void CardDecks::refresh() {
             entry.name = set.name.trimmed().isEmpty() ? entry.id : set.name.trimmed();
             entry.author = set.author;
             entry.note = set.note;
+            entry.licence = set.licence;
             entry.path = file.absoluteFilePath();
             entry.kind = set.kind;
             entry.faces = set.filledFaces();

@@ -167,6 +167,11 @@ plus</td></tr>
 <p>Le <b>thème</b> donne toutes les couleurs d'un coup ; les pastilles en
 dessous les retouchent une à une.</p>
 
+<p>La ligne du jeu porte son <b>nom</b>, son <b>auteur</b>, une remarque d'une
+ligne et sa <b>licence</b>. Cette dernière est facultative et en texte libre —
+« CC BY-SA 4.0 », « Domaine public », un nom de licence ou une adresse — et le
+jeu de rami la montre sous le nom du jeu choisi.</p>
+
 <p><b>Panneau</b>, dans la partie <b>Le dessin</b>, est le rectangle beige que
 portent les cinq cartes à motif unique : le <b>valet</b>, la <b>dame</b>, le
 <b>roi</b>, le <b>joker</b> et l'<b>as</b>. Décochez-le et l'emblème est posé à

@@ -17,6 +17,7 @@ struct DeckEntry {
     QString name;
     QString author;
     QString note;
+    QString licence;     // facultative, telle que le jeu la porte
     QString path;        // vide pour le jeu dessiné
     bool builtIn = false;
     DeckKind kind = DeckKind::Full;

@@ -118,6 +118,7 @@ private:
     QLineEdit *m_name = nullptr;
     QLineEdit *m_author = nullptr;
     QLineEdit *m_note = nullptr;
+    QLineEdit *m_licence = nullptr;
     QComboBox *m_kind = nullptr;
     QLabel *m_kindNote = nullptr;
     QCheckBox *m_clearCorners = nullptr;
