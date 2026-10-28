@@ -8,9 +8,10 @@
 // Les jeux de cartes disponibles, et celui qui est choisi.
 //
 // La liste contient toujours le jeu que le programme dessine lui-même, puis
-// les fichiers trouvés dans le dossier commun. Le dossier est partagé entre
-// les programmes ; le choix, lui, est enregistré dans les réglages de
-// chacun.
+// les fichiers trouvés dans les dossiers que `CardSet::searchFolders()`
+// désigne : celui de l'utilisateur, propre au programme, puis ceux du
+// système, où l'installation dépose les jeux livrés avec lui. Le choix est
+// enregistré dans les réglages du programme.
 
 struct DeckEntry {
     QString id;          // « dessine », ou le nom du fichier sans extension
@@ -56,6 +57,8 @@ public:
     int chosenBack() const;
     void chooseBack(int at);
 
+    // Le dossier de l'utilisateur, où le programme écrit et que les réglages
+    // proposent d'ouvrir ; les jeux livrés avec le programme sont ailleurs.
     static QString folder();
     static bool ensureFolder();
 

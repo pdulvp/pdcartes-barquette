@@ -7,6 +7,7 @@
 #include <QPixmap>
 #include <QSize>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 
 // Un jeu de cartes : 52 faces, le joker et des dos, dans un fichier unique.
@@ -212,8 +213,12 @@ public:
     QString path() const { return m_path; }
 
     static QString extension() { return QStringLiteral("cartes"); }
-    // Le dossier où les jeux installés sont recherchés.
+    // Le dossier des jeux de ce programme, le seul où il écrive.
     static QString installFolder();
+    // Tous les dossiers où des jeux sont cherchés, celui ci-dessus en tête,
+    // suivi des dossiers système où l'installation dépose les jeux livrés
+    // avec le programme.
+    static QStringList searchFolders();
 
 private:
     QPixmap drawn(const Artwork &art, const QSize &size, quint64 key) const;

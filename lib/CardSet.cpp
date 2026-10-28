@@ -860,9 +860,45 @@ QPixmap CardSet::backImage(int at, const QSize &size) const {
 void CardSet::forgetDrawings() const { m_drawn.clear(); }
 
 QString CardSet::installFolder() {
-    // Un dossier unique, partagé par tous les programmes qui lisent ce
-    // format ; chacun garde de son côté le jeu qu'il a choisi.
+    // Le dossier de réglages du programme, et « cartes » dedans : les jeux
+    // installés appartiennent au programme qui les lit, chacun ayant les
+    // siens. C'est le seul dossier où le programme écrit.
     const QString root =
-        QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
+        QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     return QDir(root).filePath(QStringLiteral("cartes"));
+}
+
+QStringList CardSet::searchFolders() {
+    QStringList folders;
+    // Un même dossier peut être désigné deux fois -- le dossier voisin de
+    // l'exécutable est parfois l'un des dossiers de données -- et un jeu y
+    // serait alors lu deux fois.
+    const auto keep = [&folders](const QString &path) {
+        if (path.isEmpty()) return;
+        const QString clean = QDir::cleanPath(path);
+        if (!folders.contains(clean)) folders.append(clean);
+    };
+
+    keep(installFolder());
+
+    // Les jeux livrés avec le programme, que son installation dépose dans un
+    // dossier de données du système : « /usr/share/pdcartes-rami/cartes »
+    // pour un paquet installé sous « /usr ». Le programme n'y écrit pas, et
+    // un utilisateur ordinaire n'en a pas le droit.
+    const QString app = QCoreApplication::applicationName();
+    if (!app.isEmpty()) {
+        const QStringList roots =
+            QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
+        for (const QString &root : roots) {
+            keep(QDir(root).filePath(app + QStringLiteral("/cartes")));
+        }
+    }
+
+    // Et le dossier voisin de l'exécutable, dont se sert l'archive Windows :
+    // on la décompresse où l'on veut, et les jeux qu'elle emporte voyagent
+    // avec le programme plutôt que dans un dossier du système.
+    keep(QDir(QCoreApplication::applicationDirPath())
+             .filePath(QStringLiteral("cartes")));
+
+    return folders;
 }

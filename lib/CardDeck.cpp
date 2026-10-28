@@ -3,12 +3,13 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QSet>
 #include <QSettings>
 
 namespace {
 
-// Le choix est enregistré dans les réglages du programme, et non dans le
-// dossier commun : chaque programme peut employer un jeu différent.
+// Le choix est enregistré dans les réglages du programme : deux programmes
+// lisant les mêmes jeux n'emploient pas forcément le même.
 const char *kChosenKey = "cartes/jeu";
 const char *kBackKey = "cartes/dos";
 
@@ -43,12 +44,23 @@ void CardDecks::refresh() {
     drawn.faces = drawn.slotCount;
     m_entries.append(drawn);
 
-    QDir dir(folder());
-    if (dir.exists()) {
-        const QStringList pattern = {QStringLiteral("*.") + CardSet::extension()};
+    // Le dossier de l'utilisateur d'abord, puis ceux du système, où
+    // l'installation du programme dépose les jeux qu'il emporte.
+    const QStringList pattern = {QStringLiteral("*.") + CardSet::extension()};
+    QSet<QString> taken;
+    const QStringList folders = CardSet::searchFolders();
+    for (const QString &where : folders) {
+        QDir dir(where);
+        if (!dir.exists()) continue;
         const QFileInfoList files =
             dir.entryInfoList(pattern, QDir::Files | QDir::Readable, QDir::Name);
         for (const QFileInfo &file : files) {
+            // L'identifiant d'un jeu est le nom de son fichier, et deux
+            // dossiers peuvent porter le même : celui du premier dossier
+            // l'emporte, de sorte qu'un jeu personnel masque un jeu livré.
+            const QString id = file.completeBaseName();
+            if (taken.contains(id)) continue;
+
             // Lu une fois pour connaître son contenu ; le jeu choisi est
             // rechargé plus tard, à la demande.
             CardSet set;
@@ -56,7 +68,7 @@ void CardDecks::refresh() {
             if (!set.load(file.absoluteFilePath(), &why)) continue;
 
             DeckEntry entry;
-            entry.id = file.completeBaseName();
+            entry.id = id;
             entry.name = set.name.trimmed().isEmpty() ? entry.id : set.name.trimmed();
             entry.author = set.author;
             entry.note = set.note;
@@ -68,6 +80,7 @@ void CardDecks::refresh() {
             entry.backs = set.backCount();
             entry.complete = set.complete();
             m_entries.append(entry);
+            taken.insert(id);
         }
     }
 
