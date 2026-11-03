@@ -58,12 +58,15 @@ const char kRecipeTag[] = "recettes";
 //        et sa hauteur
 //     6  l'image posée dans le panneau, et sa place dedans
 //     7  l'emblème et les symboles du milieu, qui peuvent s'effacer
+//     8  le fond des lettres du coin : sa présence, sa couleur, et sa
+//        largeur et sa hauteur
 //
 // Une recette plus ancienne garde donc les valeurs d'origine des champs
 // qu'elle n'a pas : son panneau derrière les seules figures, à sa taille et de
 // sa couleur, un emblème à sa taille, sans image, un emblème plat, les
-// lettres françaises, et son motif du milieu.
-constexpr qint32 kRecipeVersion = 7;
+// lettres françaises, son motif du milieu, et pas de fond sous les lettres
+// du coin.
+constexpr qint32 kRecipeVersion = 8;
 
 // La taille d'une image, lue dans son en-tête : il n'est pas nécessaire de
 // décoder l'image entière pour connaître ses dimensions. Nulle si le type
@@ -586,6 +589,8 @@ bool CardSet::save(const QString &path, QString *why) const {
                 out << how.panelArt.bytes << how.panelArt.kind << qreal(how.panelArt.offset.x())
                     << qreal(how.panelArt.offset.y()) << qreal(how.panelArt.scale);
                 out << how.style.emblemShown << how.style.pipsShown;
+                out << how.style.indexBackShown << how.style.indexBack
+                    << qreal(how.style.indexWidth) << qreal(how.style.indexHeight);
             }
         }
 
@@ -785,6 +790,13 @@ bool CardSet::load(const QString &path, QString *why) {
                     if (!how.panelArt.bytes.isEmpty()) how.panelArt.decode();
                 }
                 if (blockVersion >= 7) in >> how.style.emblemShown >> how.style.pipsShown;
+                if (blockVersion >= 8) {
+                    qreal wide = 1.0;
+                    qreal tall = 1.0;
+                    in >> how.style.indexBackShown >> how.style.indexBack >> wide >> tall;
+                    how.style.indexWidth = wide > 0.0 ? wide : 1.0;
+                    how.style.indexHeight = tall > 0.0 ? tall : 1.0;
+                }
                 if (in.status() != QDataStream::Ok) break;
                 how.height = height > 0 ? height : kDrawnHeight;
                 // Une recette dont la case n'a rien reçu serait sans objet.

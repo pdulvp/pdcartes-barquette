@@ -63,6 +63,10 @@ private:
     QSpinBox *m_panelWide = nullptr;
     QSpinBox *m_panelTall = nullptr;
     QSpinBox *m_emblem = nullptr;
+    // Le fond des lettres du coin : sa présence, sa couleur, et sa taille.
+    QCheckBox *m_indexBack = nullptr;
+    QSpinBox *m_indexWide = nullptr;
+    QSpinBox *m_indexTall = nullptr;
     // Le milieu de la carte : l'emblème des cartes à motif unique, et la
     // grille des cartes chiffrées. Deux cases, un style valant pour les
     // cinquante-trois cartes d'un jeu.

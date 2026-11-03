@@ -681,8 +681,14 @@ QFont indexFont(const QFont &base, qreal height, bool bold) {
 //
 // `withPip` est faux pour un atout, qui n'a pas de couleur : son coin ne
 // porte que son numéro.
+//
+// Lorsque le style porte un fond de lettres (`indexBackShown`), un carré
+// arrondi est tracé derrière le rang, centré sur la colonne du coin et à la
+// taille demandée : ici, en dernier, donc par-dessus le panneau, la lettre
+// venant elle-même par-dessus le fond. Son filet est de la même couleur que
+// celui du panneau.
 void paintCornerIndex(QPainter *painter, const QRectF &box, const QString &label, int suit,
-                      const QColor &ink, bool withPip) {
+                      const QColor &ink, bool withPip, const CardStyle &style) {
     const QRectF inner = innerMarginOf(box);
     const qreal indexWidth = box.width() * kIndexWidthPart;
     const qreal indexHeight = std::max(8.0, box.height() * kIndexHeightPart);
@@ -701,8 +707,23 @@ void paintCornerIndex(QPainter *painter, const QRectF &box, const QString &label
             painter->rotate(180);
             painter->translate(-box.center());
         }
-        painter->setPen(ink);
         const QRectF where(inner.left(), inner.top(), indexWidth, indexHeight);
+        if (style.indexBackShown) {
+            QRectF back(0.0, 0.0,
+                        where.width() *
+                            std::clamp(style.indexWidth, kIndexSmallest, kIndexLargest),
+                        where.height() *
+                            std::clamp(style.indexHeight, kIndexSmallest, kIndexLargest));
+            back.moveCenter(where.center());
+            const qreal round = std::min(back.width(), back.height()) * 0.24;
+            // Le même filet que le panneau, à la largeur près : la couleur
+            // est calculée comme celle du panneau, du beige et de l'encre.
+            painter->setPen(QPen(blendColours(style.panel, ink, 0.26),
+                                 std::max(1.0, back.width() * 0.020)));
+            painter->setBrush(style.indexBack);
+            painter->drawRoundedRect(back, round, round);
+        }
+        painter->setPen(ink);
         painter->drawText(where, Qt::AlignHCenter | Qt::AlignVCenter, label);
         if (withPip) {
             const qreal pip = std::min(indexWidth * 0.68, indexHeight * 0.74);
@@ -764,7 +785,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         // Le coin : le numéro en chiffres arabes, tête-bêche comme le rang
         // d'une carte ordinaire. Un atout n'a pas de couleur, et son coin ne
         // porte donc pas de symbole.
-        paintCornerIndex(painter, box, QString::number(rank), suit, ink, false);
+        paintCornerIndex(painter, box, QString::number(rank), suit, ink, false, style);
         return;
     }
 
@@ -886,7 +907,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         }
     }
 
-    paintCornerIndex(painter, box, cardRankLabel(rank, style.letters), suit, ink, true);
+    paintCornerIndex(painter, box, cardRankLabel(rank, style.letters), suit, ink, true, style);
 }
 
 } // namespace
@@ -921,7 +942,9 @@ bool CardStyle::operator==(const CardStyle &other) const {
            panelWidth == other.panelWidth && panelHeight == other.panelHeight &&
            emblemShown == other.emblemShown && pipsShown == other.pipsShown &&
            glassy == other.glassy &&
-           letters == other.letters && qFuzzyCompare(emblemSize, other.emblemSize);
+           letters == other.letters && qFuzzyCompare(emblemSize, other.emblemSize) &&
+           indexBackShown == other.indexBackShown && indexBack == other.indexBack &&
+           indexWidth == other.indexWidth && indexHeight == other.indexHeight;
 }
 
 QFont plainFont(const QPainter *painter) {

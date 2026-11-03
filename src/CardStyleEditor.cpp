@@ -31,25 +31,35 @@ struct Field {
     const char *label;
     QColor CardStyle::*member;
     const char *tip;
-    // Le champ se retire-t-il ? Un seul le peut, le panneau des figures : son
-    // étiquette est alors une case à cocher, posée à côté de la pastille qui
-    // en donne la couleur.
+    // Le champ se retire-t-il ? Le panneau des figures et le fond des lettres
+    // du coin le peuvent : leur étiquette est alors une case à cocher, posée
+    // à côté de la pastille qui en donne la couleur, et `toggle` est le
+    // booléen du style que cette case commande.
     bool togglable;
+    bool CardStyle::*toggle;
 };
 
 const Field kFields[] = {
-    {"Papier", &CardStyle::paper, "Le fond de la carte.", false},
-    {"Encre noire", &CardStyle::ink, "Le pique et le trèfle, et le rang dans le coin.", false},
-    {"Encre rouge", &CardStyle::red, "Le cœur et le carreau.", false},
+    {"Papier", &CardStyle::paper, "Le fond de la carte.", false, nullptr},
+    {"Encre noire", &CardStyle::ink, "Le pique et le trèfle, et le rang dans le coin.", false,
+     nullptr},
+    {"Encre rouge", &CardStyle::red, "Le cœur et le carreau.", false, nullptr},
     {"Panneau", &CardStyle::panel,
      "Le rectangle beige que portent les figures : le valet, la dame, le roi, le joker et "
      "l'as. Décochez pour poser l'emblème à même le papier : seul le rectangle disparaît, "
      "l'emblème gardant sa taille et sa place.",
-     true},
-    {"Bonnet du joker", &CardStyle::cap, "Le bonnet, l'étoile, et le mot « Joker ».", false},
-    {"Grelots du joker", &CardStyle::bell, "Les trois grelots du bonnet.", false},
-    {"Fond du dos", &CardStyle::back, "La couleur pleine du dos.", false},
-    {"Treillis du dos", &CardStyle::backInk, "Les diagonales tracées sur le dos.", false},
+     true, &CardStyle::panelled},
+    {"Fond des lettres", &CardStyle::indexBack,
+     "Le carré arrondi posé derrière le rang, en haut à gauche et en bas à droite, par-dessus "
+     "le panneau. Décochez pour ne laisser que la lettre. Son filet est de la même couleur "
+     "que celui du panneau.",
+     true, &CardStyle::indexBackShown},
+    {"Bonnet du joker", &CardStyle::cap, "Le bonnet, l'étoile, et le mot « Joker ».", false,
+     nullptr},
+    {"Grelots du joker", &CardStyle::bell, "Les trois grelots du bonnet.", false, nullptr},
+    {"Fond du dos", &CardStyle::back, "La couleur pleine du dos.", false, nullptr},
+    {"Treillis du dos", &CardStyle::backInk, "Les diagonales tracées sur le dos.", false,
+     nullptr},
 };
 constexpr int kFieldCount = int(sizeof(kFields) / sizeof(kFields[0]));
 
@@ -138,6 +148,25 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
                                 "marge de la carte, le facteur ne produit plus rien."));
     m_panelTall->setValue(int(std::round(m_recipe.style.panelHeight * 100.0)));
 
+    // Les deux champs de taille du fond des lettres, bornés comme ceux du
+    // panneau.
+    auto indexField = [this](const QString &tip) {
+        auto *field = new QSpinBox(this);
+        field->setRange(int(kIndexSmallest * 100.0), int(kIndexLargest * 100.0));
+        field->setSingleStep(5);
+        field->setSuffix(tr(" %"));
+        field->setToolTip(tip);
+        return field;
+    };
+    m_indexWide = indexField(tr("La largeur du fond des lettres, en proportion de celle qu'il a "
+                               "par défaut — la colonne du coin où s'écrit le rang. Le fond "
+                               "est centré sur cette colonne, et le symbole de la couleur posé "
+                               "sous le rang reste hors de lui."));
+    m_indexWide->setValue(int(std::round(m_recipe.style.indexWidth * 100.0)));
+    m_indexTall = indexField(tr("La hauteur du fond des lettres, en proportion de celle qu'il a "
+                               "par défaut."));
+    m_indexTall->setValue(int(std::round(m_recipe.style.indexHeight * 100.0)));
+
     m_pipPanel = new QCheckBox(tr("Sous les symboles"), this);
     m_pipPanel->setToolTip(tr("Trace le panneau sous les symboles des cartes de deux à dix, "
                               "et non derrière les seules figures. Les lettres et les "
@@ -202,8 +231,10 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         m_swatches.append(swatch);
     }
 
-    // L'étiquette d'une pastille : un simple mot, sauf pour le panneau des
-    // figures, dont l'étiquette commande aussi la présence.
+    // L'étiquette d'une pastille : un simple mot, sauf pour les champs qui
+    // se retirent — le panneau des figures et le fond des lettres — dont
+    // l'étiquette commande aussi la présence, et est donc une case à
+    // cocher.
     auto captionFor = [this](int at) -> QWidget * {
         if (!kFields[at].togglable) {
             auto *label = new QLabel(tr(kFields[at].label), this);
@@ -211,12 +242,17 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
             markHintLabel(label);
             return label;
         }
-        m_panelled = new QCheckBox(tr(kFields[at].label), this);
-        m_panelled->setToolTip(tr(kFields[at].tip));
-        m_panelled->setChecked(m_recipe.style.panelled);
-        m_panelled->setCursor(Qt::PointingHandCursor);
-        m_panelled->setFocusPolicy(Qt::NoFocus);
-        return m_panelled;
+        auto *box = new QCheckBox(tr(kFields[at].label), this);
+        box->setToolTip(tr(kFields[at].tip));
+        box->setChecked(m_recipe.style.*(kFields[at].toggle));
+        box->setCursor(Qt::PointingHandCursor);
+        box->setFocusPolicy(Qt::NoFocus);
+        if (kFields[at].member == &CardStyle::panel) {
+            m_panelled = box;
+        } else {
+            m_indexBack = box;
+        }
+        return box;
     };
 
     // Les réglages vont par trois : les couleurs, les figures, et l'image
@@ -263,8 +299,14 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
     // commandant du même endroit.
     auto shapeBlock = [&] {
         int panelAt = 0;
+        int backAt = 0;
         for (int at = 0; at < kFieldCount; ++at) {
-            if (kFields[at].togglable) panelAt = at;
+            if (!kFields[at].togglable) continue;
+            if (kFields[at].member == &CardStyle::panel) {
+                panelAt = at;
+            } else {
+                backAt = at;
+            }
         }
         auto *cells = new QGridLayout;
         cells->setHorizontalSpacing(9);
@@ -312,6 +354,24 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         middleRow->addStretch();
         cells->addLayout(middleRow, 4, 0, 1, 3);
         cells->addWidget(m_glassy, 5, 0, 1, 3);
+        // Le fond des lettres du coin, sur le même modèle que le panneau :
+        // sa présence et sa couleur sur une ligne, sa taille sur la
+        // suivante. Le fond se trace par-dessus le panneau, comme l'index.
+        cells->addWidget(captionFor(backAt), 6, 0);
+        cells->addWidget(m_swatches.at(backAt), 6, 1);
+        auto *backSizeLabel = new QLabel(tr("Taille du fond"), this);
+        backSizeLabel->setToolTip(m_indexWide->toolTip());
+        markHintLabel(backSizeLabel);
+        auto *backSizeRow = new QHBoxLayout;
+        backSizeRow->setSpacing(4);
+        backSizeRow->addWidget(m_indexWide);
+        auto *backTimes = new QLabel(QStringLiteral("×"), this);
+        markHintLabel(backTimes);
+        backSizeRow->addWidget(backTimes);
+        backSizeRow->addWidget(m_indexTall);
+        backSizeRow->addStretch();
+        cells->addWidget(backSizeLabel, 7, 0);
+        cells->addLayout(backSizeRow, 7, 1, 1, 2);
         // C'est la place restante qui s'étire, et non l'étiquette : les deux
         // champs restent côte à côte au lieu d'être jetés aux deux bords.
         cells->setColumnStretch(3, 1);
@@ -396,6 +456,9 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         const bool glassy = m_recipe.style.glassy;
         const RankLetters letters = m_recipe.style.letters;
         const qreal emblem = m_recipe.style.emblemSize;
+        const bool indexBackShown = m_recipe.style.indexBackShown;
+        const qreal indexWide = m_recipe.style.indexWidth;
+        const qreal indexTall = m_recipe.style.indexHeight;
         m_recipe.style = CardStyle::fromPalette(paletteForHue(kThemes[at].hue, m_dark->isChecked()));
         m_recipe.style.panelled = panelled;
         m_recipe.style.panelOnPips = onPips;
@@ -406,6 +469,12 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         m_recipe.style.glassy = glassy;
         m_recipe.style.letters = letters;
         m_recipe.style.emblemSize = emblem;
+        // La couleur du fond des lettres est une couleur : le thème la
+        // remet à sa valeur d'origine, le blanc. Sa présence et sa taille
+        // sont des choix de forme, que l'on garde.
+        m_recipe.style.indexBackShown = indexBackShown;
+        m_recipe.style.indexWidth = indexWide;
+        m_recipe.style.indexHeight = indexTall;
         noteEdit();
     };
     connect(m_theme, &QComboBox::currentIndexChanged, this, takeTheme);
@@ -432,6 +501,18 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
     });
     connect(m_panelTall, &QSpinBox::valueChanged, this, [this](int percent) {
         m_recipe.style.panelHeight = percent / 100.0;
+        noteEdit();
+    });
+    connect(m_indexBack, &QCheckBox::toggled, this, [this](bool on) {
+        m_recipe.style.indexBackShown = on;
+        noteEdit();
+    });
+    connect(m_indexWide, &QSpinBox::valueChanged, this, [this](int percent) {
+        m_recipe.style.indexWidth = percent / 100.0;
+        noteEdit();
+    });
+    connect(m_indexTall, &QSpinBox::valueChanged, this, [this](int percent) {
+        m_recipe.style.indexHeight = percent / 100.0;
         noteEdit();
     });
     connect(m_emblemShown, &QCheckBox::toggled, this, [this](bool on) {
@@ -466,6 +547,9 @@ void CardStyleEditor::setRecipe(const DrawnRecipe &how) {
     m_pipPanel->setChecked(m_recipe.style.panelOnPips);
     m_panelWide->setValue(int(std::round(m_recipe.style.panelWidth * 100.0)));
     m_panelTall->setValue(int(std::round(m_recipe.style.panelHeight * 100.0)));
+    m_indexBack->setChecked(m_recipe.style.indexBackShown);
+    m_indexWide->setValue(int(std::round(m_recipe.style.indexWidth * 100.0)));
+    m_indexTall->setValue(int(std::round(m_recipe.style.indexHeight * 100.0)));
     m_emblemShown->setChecked(m_recipe.style.emblemShown);
     m_pipsShown->setChecked(m_recipe.style.pipsShown);
     m_glassy->setChecked(m_recipe.style.glassy);
@@ -505,15 +589,19 @@ void CardStyleEditor::pickColour(int field) {
 void CardStyleEditor::refreshSwatches() {
     const Palette &scheme = currentPalette();
     // Les commandes du panneau s'éteignent avec lui : sans rectangle, ni les
-    // cartes qu'il garnit ni sa taille ne veulent dire quoi que ce soit.
+    // cartes qu'il garnit ni sa taille ne veulent dire quoi que ce soit. Celles
+    // du fond des lettres, avec lui.
     const bool panelled = m_recipe.style.panelled;
     if (m_pipPanel) m_pipPanel->setEnabled(panelled);
     if (m_panelWide) m_panelWide->setEnabled(panelled);
     if (m_panelTall) m_panelTall->setEnabled(panelled);
+    const bool indexBack = m_recipe.style.indexBackShown;
+    if (m_indexWide) m_indexWide->setEnabled(indexBack);
+    if (m_indexTall) m_indexTall->setEnabled(indexBack);
     for (int at = 0; at < m_swatches.size() && at < kFieldCount; ++at) {
         // La pastille d'un élément retiré ne colore plus rien : elle est
         // éteinte, plutôt que de laisser croire qu'elle agit encore.
-        const bool live = !kFields[at].togglable || m_recipe.style.panelled;
+        const bool live = !kFields[at].togglable || m_recipe.style.*(kFields[at].toggle);
         m_swatches.at(at)->setEnabled(live);
         const QColor colour = live ? m_recipe.style.*(kFields[at].member)
                                    : blendColours(m_recipe.style.*(kFields[at].member),
