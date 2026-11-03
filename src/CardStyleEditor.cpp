@@ -177,6 +177,18 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
     m_pipPanel->setCursor(Qt::PointingHandCursor);
     m_pipPanel->setFocusPolicy(Qt::NoFocus);
 
+    // La présence des lettres du coin. Elle commande aussi le fond des
+    // lettres : sans lettre, pas de fond, et les commandes de celui-ci
+    // s'éteignent avec cette case.
+    m_indexShown = new QCheckBox(tr("Index des coins"), this);
+    m_indexShown->setToolTip(tr("Le rang et le symbole de la couleur dans les coins, en haut à "
+                                "gauche et répétés en bas à droite. Décochez pour ne laisser "
+                                "que le milieu de la carte ; le fond des lettres disparaît "
+                                "avec les lettres."));
+    m_indexShown->setChecked(m_recipe.style.indexShown);
+    m_indexShown->setCursor(Qt::PointingHandCursor);
+    m_indexShown->setFocusPolicy(Qt::NoFocus);
+
     // Le milieu de la carte. Deux cases et non une : un style vaut pour les
     // cinquante-trois cartes d'un jeu, et une seule case imposerait aux
     // cartes chiffrées le choix fait pour les figures.
@@ -357,8 +369,11 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         // Le fond des lettres du coin, sur le même modèle que le panneau :
         // sa présence et sa couleur sur une ligne, sa taille sur la
         // suivante. Le fond se trace par-dessus le panneau, comme l'index.
+        // La case « Index des coins » partage la ligne : c'est elle qui dit
+        // si les lettres du coin sont tracées, et le fond va avec elles.
         cells->addWidget(captionFor(backAt), 6, 0);
         cells->addWidget(m_swatches.at(backAt), 6, 1);
+        cells->addWidget(m_indexShown, 6, 2);
         auto *backSizeLabel = new QLabel(tr("Taille du fond"), this);
         backSizeLabel->setToolTip(m_indexWide->toolTip());
         markHintLabel(backSizeLabel);
@@ -459,6 +474,7 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         const bool indexBackShown = m_recipe.style.indexBackShown;
         const qreal indexWide = m_recipe.style.indexWidth;
         const qreal indexTall = m_recipe.style.indexHeight;
+        const bool indexShown = m_recipe.style.indexShown;
         m_recipe.style = CardStyle::fromPalette(paletteForHue(kThemes[at].hue, m_dark->isChecked()));
         m_recipe.style.panelled = panelled;
         m_recipe.style.panelOnPips = onPips;
@@ -475,6 +491,7 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         m_recipe.style.indexBackShown = indexBackShown;
         m_recipe.style.indexWidth = indexWide;
         m_recipe.style.indexHeight = indexTall;
+        m_recipe.style.indexShown = indexShown;
         noteEdit();
     };
     connect(m_theme, &QComboBox::currentIndexChanged, this, takeTheme);
@@ -515,6 +532,10 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         m_recipe.style.indexHeight = percent / 100.0;
         noteEdit();
     });
+    connect(m_indexShown, &QCheckBox::toggled, this, [this](bool on) {
+        m_recipe.style.indexShown = on;
+        noteEdit();
+    });
     connect(m_emblemShown, &QCheckBox::toggled, this, [this](bool on) {
         m_recipe.style.emblemShown = on;
         noteEdit();
@@ -550,6 +571,7 @@ void CardStyleEditor::setRecipe(const DrawnRecipe &how) {
     m_indexBack->setChecked(m_recipe.style.indexBackShown);
     m_indexWide->setValue(int(std::round(m_recipe.style.indexWidth * 100.0)));
     m_indexTall->setValue(int(std::round(m_recipe.style.indexHeight * 100.0)));
+    m_indexShown->setChecked(m_recipe.style.indexShown);
     m_emblemShown->setChecked(m_recipe.style.emblemShown);
     m_pipsShown->setChecked(m_recipe.style.pipsShown);
     m_glassy->setChecked(m_recipe.style.glassy);
@@ -595,13 +617,19 @@ void CardStyleEditor::refreshSwatches() {
     if (m_pipPanel) m_pipPanel->setEnabled(panelled);
     if (m_panelWide) m_panelWide->setEnabled(panelled);
     if (m_panelTall) m_panelTall->setEnabled(panelled);
-    const bool indexBack = m_recipe.style.indexBackShown;
+    // Sans index du coin, le fond des lettres n'a plus lieu d'être : sa
+    // case, sa pastille et ses champs de taille s'éteignent avec « Index
+    // des coins ».
+    const bool indexShown = m_recipe.style.indexShown;
+    if (m_indexBack) m_indexBack->setEnabled(indexShown);
+    const bool indexBack = indexShown && m_recipe.style.indexBackShown;
     if (m_indexWide) m_indexWide->setEnabled(indexBack);
     if (m_indexTall) m_indexTall->setEnabled(indexBack);
     for (int at = 0; at < m_swatches.size() && at < kFieldCount; ++at) {
         // La pastille d'un élément retiré ne colore plus rien : elle est
         // éteinte, plutôt que de laisser croire qu'elle agit encore.
-        const bool live = !kFields[at].togglable || m_recipe.style.*(kFields[at].toggle);
+        bool live = !kFields[at].togglable || m_recipe.style.*(kFields[at].toggle);
+        if (kFields[at].member == &CardStyle::indexBack) live = live && indexShown;
         m_swatches.at(at)->setEnabled(live);
         const QColor colour = live ? m_recipe.style.*(kFields[at].member)
                                    : blendColours(m_recipe.style.*(kFields[at].member),

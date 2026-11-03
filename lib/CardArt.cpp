@@ -785,7 +785,9 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         // Le coin : le numéro en chiffres arabes, tête-bêche comme le rang
         // d'une carte ordinaire. Un atout n'a pas de couleur, et son coin ne
         // porte donc pas de symbole.
-        paintCornerIndex(painter, box, QString::number(rank), suit, ink, false, style);
+        if (style.indexShown) {
+            paintCornerIndex(painter, box, QString::number(rank), suit, ink, false, style);
+        }
         return;
     }
 
@@ -907,7 +909,9 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         }
     }
 
-    paintCornerIndex(painter, box, cardRankLabel(rank, style.letters), suit, ink, true, style);
+    if (style.indexShown) {
+        paintCornerIndex(painter, box, cardRankLabel(rank, style.letters), suit, ink, true, style);
+    }
 }
 
 } // namespace
@@ -943,6 +947,7 @@ bool CardStyle::operator==(const CardStyle &other) const {
            emblemShown == other.emblemShown && pipsShown == other.pipsShown &&
            glassy == other.glassy &&
            letters == other.letters && qFuzzyCompare(emblemSize, other.emblemSize) &&
+           indexShown == other.indexShown &&
            indexBackShown == other.indexBackShown && indexBack == other.indexBack &&
            indexWidth == other.indexWidth && indexHeight == other.indexHeight;
 }

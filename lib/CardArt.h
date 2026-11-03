@@ -184,6 +184,11 @@ struct CardStyle {
     // La convention qui donne les lettres du coin.
     RankLetters letters = RankLetters::French;
 
+    // Les lettres du coin sont-elles tracées ? Décochée, il ne reste que ce
+    // que la carte porte au milieu. Le fond des lettres disparaît avec elles :
+    // il n'est tracé que là où la lettre l'est, et il n'y a plus de lettre.
+    bool indexShown = true;
+
     // Le fond des lettres du coin : un carré arrondi posé derrière le rang,
     // en haut à gauche et en bas à droite, et tracé par-dessus le panneau
     // comme l'index l'est toujours.
