@@ -162,10 +162,16 @@ struct CardStyle {
     // du panneau est le dessin : l'emblème viendrait par-dessus.
     //
     // Les index, eux, restent : ce sont eux qui disent le rang et la couleur.
-    // Le mot « Joker » reste aussi, le joker n'ayant pas d'index où se
-    // nommer.
+    // Le joker porte lui aussi un index — l'étoile « ★ » — et son mot écrit
+    // en dessous se règle à part, par `jokerNameShown`.
     bool emblemShown = true;
     bool pipsShown = true;
+
+    // Le mot écrit sous le panneau du joker : « Joker », ou « Excuse » dans
+    // un tarot — c'est la même case, et c'est la couleur des atouts qui
+    // choisit le mot. Décochée, il ne reste que le personnage et l'étoile
+    // des coins, qui nomme la carte à sa place.
+    bool jokerNameShown = true;
 
     // Les grands motifs ont-ils l'aspect du verre ?
     //

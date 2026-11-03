@@ -794,7 +794,8 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
     if (rank == kJoker) {
         // Le joker, ou l'excuse du tarot : c'est la même carte à la même
         // place, et le même dessin lui va. Seul le mot écrit dessous change,
-        // et c'est la couleur des atouts qui le dit.
+        // et c'est la couleur des atouts qui le dit ; tous deux portent la
+        // même étoile dans les coins.
         //
         // Le joker porte le panneau des figures : lui non plus ne montre pas
         // de symboles, et il remplissait jusqu'au bord une carte où les
@@ -811,7 +812,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         } else if (style.emblemShown) {
             paintJoker(painter, inner, style);
         }
-        if (box.width() >= 42) {
+        if (style.jokerNameShown && box.width() >= 42) {
             QFont name = indexFont(plainFont(painter), box.height() * 0.085, true);
             name.setCapitalization(QFont::AllUppercase);
             name.setLetterSpacing(QFont::PercentageSpacing, 130);
@@ -823,6 +824,14 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
                               suit == CardSet::kTrumpSuit
                                   ? QCoreApplication::translate("cardart", "Excuse")
                                   : QCoreApplication::translate("cardart", "Joker"));
+        }
+        // Le coin : l'étoile, qui est le rang du joker (`cardRankLabel(0)`),
+        // tête-bêche comme le rang d'une carte ordinaire. C'est elle qui nomme
+        // la carte dans les coins lorsque le mot en dessous est retiré. Un
+        // joker n'a pas de couleur : son coin ne porte pas de symbole.
+        if (style.indexShown) {
+            paintCornerIndex(painter, box, cardRankLabel(kJoker, style.letters), suit, ink, false,
+                             style);
         }
         return;
     }
@@ -949,7 +958,8 @@ bool CardStyle::operator==(const CardStyle &other) const {
            letters == other.letters && qFuzzyCompare(emblemSize, other.emblemSize) &&
            indexShown == other.indexShown &&
            indexBackShown == other.indexBackShown && indexBack == other.indexBack &&
-           indexWidth == other.indexWidth && indexHeight == other.indexHeight;
+           indexWidth == other.indexWidth && indexHeight == other.indexHeight &&
+           jokerNameShown == other.jokerNameShown;
 }
 
 QFont plainFont(const QPainter *painter) {

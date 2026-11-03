@@ -69,6 +69,8 @@ private:
     QSpinBox *m_indexTall = nullptr;
     // La présence des lettres du coin elles-mêmes.
     QCheckBox *m_indexShown = nullptr;
+    // Le mot écrit sous le panneau du joker (« Joker » / « Excuse »).
+    QCheckBox *m_jokerName = nullptr;
     // Le milieu de la carte : l'emblème des cartes à motif unique, et la
     // grille des cartes chiffrées. Deux cases, un style valant pour les
     // cinquante-trois cartes d'un jeu.

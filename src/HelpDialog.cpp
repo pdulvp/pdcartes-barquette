@@ -196,8 +196,10 @@ cases et non une, un style valant pour les cinquante-trois cartes d'un jeu :
 les figures peuvent ainsi porter une image seule pendant que les cartes
 chiffrées gardent leurs symboles. Il reste alors le papier, le panneau avec
 son image, et les deux index — lesquels disent seuls le rang et la couleur, et
-ne s'effacent donc jamais. Le mot <b>Joker</b> reste lui aussi, le joker
-n'ayant pas d'index où se nommer.</p>
+peuvent s'effacer aussi, par <b>Index des coins</b>, pour une carte dont le
+milieu porte seul l'information ; le fond des lettres disparaît avec eux. Le
+mot <b>Joker</b> peut lui aussi s'effacer, l'étoile des coins suffisant alors
+à nommer la carte.</p>
 
 <p><b>Taille de l'emblème</b> grossit ou réduit la couronne, le diadème, la
 fleur de lis, le bonnet et le symbole de l'as, et <b>Emblèmes en verre</b> les
@@ -219,6 +221,12 @@ espagnol n'en ayant pas</td></tr>
 <p>Le <b>cavalier</b> ne paraît que sur un tarot, mais chaque convention a sa
 lettre : une carte ne change pas de lettre selon le jeu où elle se
 trouve.</p>
+
+<p><b>Fond des lettres</b> pose derrière le rang un carré arrondi, blanc par
+défaut, cerné du même filet que le panneau et tracé par-dessus lui ;
+<b>Taille du fond</b> donne sa largeur puis sa hauteur. Le <b>joker</b> et
+l'<b>excuse</b> portent dans leurs coins une étoile « ★ » à la place du rang,
+et <b>Le mot du joker</b> retire le mot écrit sous leur panneau.</p>
 
 <p> La <b>hauteur</b> est celle des images produites :
 quelques centaines de pixels suffisent, les cinquante-trois cartes partageant

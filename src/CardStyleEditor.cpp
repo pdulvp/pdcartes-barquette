@@ -189,6 +189,15 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
     m_indexShown->setCursor(Qt::PointingHandCursor);
     m_indexShown->setFocusPolicy(Qt::NoFocus);
 
+    m_jokerName = new QCheckBox(tr("Le mot du joker"), this);
+    m_jokerName->setToolTip(tr("Le mot écrit sous le panneau du joker — « Joker », ou "
+                               "« Excuse » dans un tarot. Décochez pour ne laisser que le "
+                               "personnage et l'étoile des coins, qui nomme la carte à sa "
+                               "place."));
+    m_jokerName->setChecked(m_recipe.style.jokerNameShown);
+    m_jokerName->setCursor(Qt::PointingHandCursor);
+    m_jokerName->setFocusPolicy(Qt::NoFocus);
+
     // Le milieu de la carte. Deux cases et non une : un style vaut pour les
     // cinquante-trois cartes d'un jeu, et une seule case imposerait aux
     // cartes chiffrées le choix fait pour les figures.
@@ -387,6 +396,7 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         backSizeRow->addStretch();
         cells->addWidget(backSizeLabel, 7, 0);
         cells->addLayout(backSizeRow, 7, 1, 1, 2);
+        cells->addWidget(m_jokerName, 8, 0, 1, 3);
         // C'est la place restante qui s'étire, et non l'étiquette : les deux
         // champs restent côte à côte au lieu d'être jetés aux deux bords.
         cells->setColumnStretch(3, 1);
@@ -475,6 +485,7 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         const qreal indexWide = m_recipe.style.indexWidth;
         const qreal indexTall = m_recipe.style.indexHeight;
         const bool indexShown = m_recipe.style.indexShown;
+        const bool jokerNameShown = m_recipe.style.jokerNameShown;
         m_recipe.style = CardStyle::fromPalette(paletteForHue(kThemes[at].hue, m_dark->isChecked()));
         m_recipe.style.panelled = panelled;
         m_recipe.style.panelOnPips = onPips;
@@ -492,6 +503,7 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         m_recipe.style.indexWidth = indexWide;
         m_recipe.style.indexHeight = indexTall;
         m_recipe.style.indexShown = indexShown;
+        m_recipe.style.jokerNameShown = jokerNameShown;
         noteEdit();
     };
     connect(m_theme, &QComboBox::currentIndexChanged, this, takeTheme);
@@ -536,6 +548,10 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         m_recipe.style.indexShown = on;
         noteEdit();
     });
+    connect(m_jokerName, &QCheckBox::toggled, this, [this](bool on) {
+        m_recipe.style.jokerNameShown = on;
+        noteEdit();
+    });
     connect(m_emblemShown, &QCheckBox::toggled, this, [this](bool on) {
         m_recipe.style.emblemShown = on;
         noteEdit();
@@ -572,6 +588,7 @@ void CardStyleEditor::setRecipe(const DrawnRecipe &how) {
     m_indexWide->setValue(int(std::round(m_recipe.style.indexWidth * 100.0)));
     m_indexTall->setValue(int(std::round(m_recipe.style.indexHeight * 100.0)));
     m_indexShown->setChecked(m_recipe.style.indexShown);
+    m_jokerName->setChecked(m_recipe.style.jokerNameShown);
     m_emblemShown->setChecked(m_recipe.style.emblemShown);
     m_pipsShown->setChecked(m_recipe.style.pipsShown);
     m_glassy->setChecked(m_recipe.style.glassy);
