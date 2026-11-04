@@ -207,15 +207,21 @@ struct CardStyle {
     QColor indexBack = QColor(Qt::white);  // le fond, blanc par défaut
 
     // La largeur et la hauteur du fond des lettres, en facteur de celles
-    // qu'il a par défaut — la colonne du coin où s'écrit le rang. Des
-    // facteurs et non des mesures, pour la raison qui vaut pour
-    // `panelWidth` : le coin est déduit de la carte, et les cartes sont
-    // rendues à la hauteur qu'on demande. Bornés au dessin entre
-    // `kIndexSmallest` et `kIndexLargest`. Le fond est centré sur la
-    // colonne du coin ; le symbole de la couleur, posé sous le rang, reste
-    // hors de lui.
+    // qu'il a par défaut — le contenu entier du coin : la lettre et le
+    // symbole posé sous elle. Des facteurs et non des mesures, pour la
+    // raison qui vaut pour `panelWidth` : le coin est déduit de la carte, et
+    // les cartes sont rendues à la hauteur qu'on demande. Bornés au dessin
+    // entre `kIndexSmallest` et `kIndexLargest`. Le fond est centré sur ce
+    // contenu, de sorte que le symbole reste dedans.
     qreal indexWidth = 1.0;
     qreal indexHeight = 1.0;
+
+    // La taille de la police des lettres du coin, en facteur de celle
+    // qu'elle a par défaut. La colonne du coin s'allonge avec, le symbole
+    // posé sous le rang grossit dans la même proportion, et le fond des
+    // lettres recouvre les deux. Bornée au dessin entre `kIndexFontSmallest`
+    // et `kIndexFontLargest`.
+    qreal indexFontSize = 1.0;
 
     // Les couleurs qu'une palette donne à une carte. C'est le style des
     // cartes que `pdcartes-rami` dessine sur son tapis.
@@ -313,9 +319,14 @@ inline constexpr qreal kPanelLargest = 2.00;
 
 // Bornes de `CardStyle::indexWidth` et `CardStyle::indexHeight`. En dessous,
 // le fond des lettres n'est plus qu'une tache sous le rang ; au-dessus, il
-// recouvre le symbole de la couleur posé sous le rang.
+// déborde de la colonne du coin sur le panneau.
 inline constexpr qreal kIndexSmallest = 0.50;
 inline constexpr qreal kIndexLargest = 2.00;
+
+// Bornes de `CardStyle::indexFontSize`. En dessous, la lettre n'est plus
+// lisible ; au-dessus, la colonne du coin mange la moitié de la carte.
+inline constexpr qreal kIndexFontSmallest = 0.50;
+inline constexpr qreal kIndexFontLargest = 2.00;
 
 // Retourne la police du peintre réinitialisée.
 //

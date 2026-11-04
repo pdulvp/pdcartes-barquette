@@ -164,8 +164,17 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
                                "sous le rang reste hors de lui."));
     m_indexWide->setValue(int(std::round(m_recipe.style.indexWidth * 100.0)));
     m_indexTall = indexField(tr("La hauteur du fond des lettres, en proportion de celle qu'il a "
-                               "par défaut."));
+                               "par défaut — le contenu entier du coin, lettre et symbole."));
     m_indexTall->setValue(int(std::round(m_recipe.style.indexHeight * 100.0)));
+
+    m_indexFont = new QSpinBox(this);
+    m_indexFont->setRange(int(kIndexFontSmallest * 100.0), int(kIndexFontLargest * 100.0));
+    m_indexFont->setSingleStep(5);
+    m_indexFont->setSuffix(tr(" %"));
+    m_indexFont->setValue(int(std::round(m_recipe.style.indexFontSize * 100.0)));
+    m_indexFont->setToolTip(tr("La taille des lettres du coin, en proportion de celle qu'elles ont "
+                               "par défaut. Le symbole posé sous le rang grossit dans la même "
+                               "proportion, et le fond des lettres recouvre les deux."));
 
     m_pipPanel = new QCheckBox(tr("Sous les symboles"), this);
     m_pipPanel->setToolTip(tr("Trace le panneau sous les symboles des cartes de deux à dix, "
@@ -362,27 +371,32 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         markHintLabel(lettersLabel);
         cells->addWidget(lettersLabel, 2, 0);
         cells->addWidget(m_letters, 2, 1);
+        auto *fontLabel = new QLabel(tr("Taille des lettres"), this);
+        fontLabel->setToolTip(m_indexFont->toolTip());
+        markHintLabel(fontLabel);
+        cells->addWidget(fontLabel, 3, 0);
+        cells->addWidget(m_indexFont, 3, 1);
         auto *label = new QLabel(tr("Taille de l'emblème"), this);
         label->setToolTip(m_emblem->toolTip());
         markHintLabel(label);
-        cells->addWidget(label, 3, 0);
-        cells->addWidget(m_emblem, 3, 1);
+        cells->addWidget(label, 4, 0);
+        cells->addWidget(m_emblem, 4, 1);
         // Les deux cases du milieu vont de pair et se lisent sur une ligne.
         auto *middleRow = new QHBoxLayout;
         middleRow->setSpacing(10);
         middleRow->addWidget(m_emblemShown);
         middleRow->addWidget(m_pipsShown);
         middleRow->addStretch();
-        cells->addLayout(middleRow, 4, 0, 1, 3);
-        cells->addWidget(m_glassy, 5, 0, 1, 3);
+        cells->addLayout(middleRow, 5, 0, 1, 3);
+        cells->addWidget(m_glassy, 6, 0, 1, 3);
         // Le fond des lettres du coin, sur le même modèle que le panneau :
         // sa présence et sa couleur sur une ligne, sa taille sur la
         // suivante. Le fond se trace par-dessus le panneau, comme l'index.
         // La case « Index des coins » partage la ligne : c'est elle qui dit
         // si les lettres du coin sont tracées, et le fond va avec elles.
-        cells->addWidget(captionFor(backAt), 6, 0);
-        cells->addWidget(m_swatches.at(backAt), 6, 1);
-        cells->addWidget(m_indexShown, 6, 2);
+        cells->addWidget(captionFor(backAt), 7, 0);
+        cells->addWidget(m_swatches.at(backAt), 7, 1);
+        cells->addWidget(m_indexShown, 7, 2);
         auto *backSizeLabel = new QLabel(tr("Taille du fond"), this);
         backSizeLabel->setToolTip(m_indexWide->toolTip());
         markHintLabel(backSizeLabel);
@@ -394,9 +408,9 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         backSizeRow->addWidget(backTimes);
         backSizeRow->addWidget(m_indexTall);
         backSizeRow->addStretch();
-        cells->addWidget(backSizeLabel, 7, 0);
-        cells->addLayout(backSizeRow, 7, 1, 1, 2);
-        cells->addWidget(m_jokerName, 8, 0, 1, 3);
+        cells->addWidget(backSizeLabel, 8, 0);
+        cells->addLayout(backSizeRow, 8, 1, 1, 2);
+        cells->addWidget(m_jokerName, 9, 0, 1, 3);
         // C'est la place restante qui s'étire, et non l'étiquette : les deux
         // champs restent côte à côte au lieu d'être jetés aux deux bords.
         cells->setColumnStretch(3, 1);
@@ -486,6 +500,7 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         const qreal indexTall = m_recipe.style.indexHeight;
         const bool indexShown = m_recipe.style.indexShown;
         const bool jokerNameShown = m_recipe.style.jokerNameShown;
+        const qreal indexFont = m_recipe.style.indexFontSize;
         m_recipe.style = CardStyle::fromPalette(paletteForHue(kThemes[at].hue, m_dark->isChecked()));
         m_recipe.style.panelled = panelled;
         m_recipe.style.panelOnPips = onPips;
@@ -504,6 +519,7 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         m_recipe.style.indexHeight = indexTall;
         m_recipe.style.indexShown = indexShown;
         m_recipe.style.jokerNameShown = jokerNameShown;
+        m_recipe.style.indexFontSize = indexFont;
         noteEdit();
     };
     connect(m_theme, &QComboBox::currentIndexChanged, this, takeTheme);
@@ -552,6 +568,10 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         m_recipe.style.jokerNameShown = on;
         noteEdit();
     });
+    connect(m_indexFont, &QSpinBox::valueChanged, this, [this](int percent) {
+        m_recipe.style.indexFontSize = percent / 100.0;
+        noteEdit();
+    });
     connect(m_emblemShown, &QCheckBox::toggled, this, [this](bool on) {
         m_recipe.style.emblemShown = on;
         noteEdit();
@@ -589,6 +609,7 @@ void CardStyleEditor::setRecipe(const DrawnRecipe &how) {
     m_indexTall->setValue(int(std::round(m_recipe.style.indexHeight * 100.0)));
     m_indexShown->setChecked(m_recipe.style.indexShown);
     m_jokerName->setChecked(m_recipe.style.jokerNameShown);
+    m_indexFont->setValue(int(std::round(m_recipe.style.indexFontSize * 100.0)));
     m_emblemShown->setChecked(m_recipe.style.emblemShown);
     m_pipsShown->setChecked(m_recipe.style.pipsShown);
     m_glassy->setChecked(m_recipe.style.glassy);
@@ -639,6 +660,7 @@ void CardStyleEditor::refreshSwatches() {
     // des coins ».
     const bool indexShown = m_recipe.style.indexShown;
     if (m_indexBack) m_indexBack->setEnabled(indexShown);
+    if (m_indexFont) m_indexFont->setEnabled(indexShown);
     const bool indexBack = indexShown && m_recipe.style.indexBackShown;
     if (m_indexWide) m_indexWide->setEnabled(indexBack);
     if (m_indexTall) m_indexTall->setEnabled(indexBack);

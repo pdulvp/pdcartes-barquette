@@ -682,16 +682,22 @@ QFont indexFont(const QFont &base, qreal height, bool bold) {
 // `withPip` est faux pour un atout, qui n'a pas de couleur : son coin ne
 // porte que son numéro.
 //
+// La taille des lettres se règle par `indexFontSize` : la colonne du coin
+// s'allonge du même facteur, la police est composée à cette hauteur (et
+// toujours resserrée si « 10 » ne tient pas en largeur), et le symbole posé
+// sous le rang grossit dans la même proportion.
+//
 // Lorsque le style porte un fond de lettres (`indexBackShown`), un carré
-// arrondi est tracé derrière le rang, centré sur la colonne du coin et à la
-// taille demandée : ici, en dernier, donc par-dessus le panneau, la lettre
-// venant elle-même par-dessus le fond. Son filet est de la même couleur que
-// celui du panneau.
+// arrondi est tracé derrière tout le contenu du coin — la lettre et le
+// symbole dessous —, centré sur ce contenu et à la taille demandée : ici, en
+// dernier, donc par-dessus le panneau, la lettre venant elle-même par-dessus
+// le fond. Son filet est de la même couleur que celui du panneau.
 void paintCornerIndex(QPainter *painter, const QRectF &box, const QString &label, int suit,
                       const QColor &ink, bool withPip, const CardStyle &style) {
     const QRectF inner = innerMarginOf(box);
     const qreal indexWidth = box.width() * kIndexWidthPart;
-    const qreal indexHeight = std::max(8.0, box.height() * kIndexHeightPart);
+    const qreal fontPart = std::clamp(style.indexFontSize, kIndexFontSmallest, kIndexFontLargest);
+    const qreal indexHeight = std::max(8.0, box.height() * kIndexHeightPart) * fontPart;
     QFont rankFont = indexFont(plainFont(painter), indexHeight, true);
     const qreal wanted = QFontMetricsF(rankFont).horizontalAdvance(label);
     if (wanted > indexWidth) {
@@ -699,6 +705,9 @@ void paintCornerIndex(QPainter *painter, const QRectF &box, const QString &label
                              indexHeight * std::max(0.66, indexWidth / wanted), true);
     }
     painter->setFont(rankFont);
+
+    // Le symbole sous le rang, s'il y en a un : il grossit avec la lettre.
+    const qreal pip = std::min(indexWidth * 0.68, indexHeight * 0.74);
 
     for (int turn = 0; turn < 2; ++turn) {
         painter->save();
@@ -708,13 +717,20 @@ void paintCornerIndex(QPainter *painter, const QRectF &box, const QString &label
             painter->translate(-box.center());
         }
         const QRectF where(inner.left(), inner.top(), indexWidth, indexHeight);
+        // Le contenu du coin : la lettre, et le symbole dessous quand la
+        // carte en porte un. C'est ce contenu que le fond recouvre.
+        QRectF content = where;
+        if (withPip) {
+            const qreal pipMiddle = where.bottom() + pip * 0.60 + box.height() * 0.012;
+            content.setBottom(pipMiddle + pip * 0.5);
+        }
         if (style.indexBackShown) {
             QRectF back(0.0, 0.0,
-                        where.width() *
+                        content.width() *
                             std::clamp(style.indexWidth, kIndexSmallest, kIndexLargest),
-                        where.height() *
+                        content.height() *
                             std::clamp(style.indexHeight, kIndexSmallest, kIndexLargest));
-            back.moveCenter(where.center());
+            back.moveCenter(content.center());
             const qreal round = std::min(back.width(), back.height()) * 0.24;
             // Le même filet que le panneau, à la largeur près : la couleur
             // est calculée comme celle du panneau, du beige et de l'encre.
@@ -726,7 +742,6 @@ void paintCornerIndex(QPainter *painter, const QRectF &box, const QString &label
         painter->setPen(ink);
         painter->drawText(where, Qt::AlignHCenter | Qt::AlignVCenter, label);
         if (withPip) {
-            const qreal pip = std::min(indexWidth * 0.68, indexHeight * 0.74);
             drawPip(painter,
                     QPointF(where.center().x(),
                             where.bottom() + pip * 0.60 + box.height() * 0.012),
@@ -959,6 +974,7 @@ bool CardStyle::operator==(const CardStyle &other) const {
            indexShown == other.indexShown &&
            indexBackShown == other.indexBackShown && indexBack == other.indexBack &&
            indexWidth == other.indexWidth && indexHeight == other.indexHeight &&
+           indexFontSize == other.indexFontSize &&
            jokerNameShown == other.jokerNameShown;
 }
 

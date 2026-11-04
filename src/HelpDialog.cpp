@@ -224,7 +224,10 @@ trouve.</p>
 
 <p><b>Fond des lettres</b> pose derrière le rang un carré arrondi, blanc par
 défaut, cerné du même filet que le panneau et tracé par-dessus lui ;
-<b>Taille du fond</b> donne sa largeur puis sa hauteur. Le <b>joker</b> et
+<b>Taille du fond</b> donne sa largeur puis sa hauteur. Le fond recouvre tout
+le coin : la lettre et le symbole de la couleur posé dessous, centré sur les
+deux. <b>Taille des lettres</b> grossit ou réduit les lettres du coin, et le
+symbole dessous suit dans la même proportion. Le <b>joker</b> et
 l'<b>excuse</b> portent dans leurs coins une étoile « ★ » à la place du rang,
 et <b>Le mot du joker</b> retire le mot écrit sous leur panneau.</p>
 

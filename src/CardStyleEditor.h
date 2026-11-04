@@ -67,6 +67,8 @@ private:
     QCheckBox *m_indexBack = nullptr;
     QSpinBox *m_indexWide = nullptr;
     QSpinBox *m_indexTall = nullptr;
+    // La taille de la police des lettres du coin.
+    QSpinBox *m_indexFont = nullptr;
     // La présence des lettres du coin elles-mêmes.
     QCheckBox *m_indexShown = nullptr;
     // Le mot écrit sous le panneau du joker (« Joker » / « Excuse »).
