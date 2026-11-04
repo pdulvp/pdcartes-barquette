@@ -176,10 +176,12 @@ jeu de rami la montre sous le nom du jeu choisi.</p>
 portent les cinq cartes à motif unique : le <b>valet</b>, la <b>dame</b>, le
 <b>roi</b>, le <b>joker</b> et l'<b>as</b>. Décochez-le et l'emblème est posé à
 même le papier ; seul le rectangle disparaît, l'emblème gardant sa taille et sa
-place. <b>Sous les symboles</b> le trace en plus sous les symboles des
-cartes de deux à dix, les lettres et les symboles des coins venant par-dessus :
-sur une carte imprimée, l'index du coin se lit toujours, quoi qu'il y ait
-derrière.</p>
+place. La pastille à côté de la sienne donne la couleur de son <b>filet</b> :
+tant qu'aucune n'est choisie, il est calculé du beige et de l'encre, et la
+pastille montre cette couleur. <b>Sous les symboles</b> le trace en plus sous
+les symboles des cartes de deux à dix, les lettres et les symboles des coins
+venant par-dessus : sur une carte imprimée, l'index du coin se lit toujours,
+quoi qu'il y ait derrière.</p>
 
 <p><b>Taille du panneau</b> donne sa largeur puis sa hauteur, en proportion de
 celles qu'il a par défaut. L'emblème est inscrit dans le panneau et suit donc
@@ -223,13 +225,14 @@ lettre : une carte ne change pas de lettre selon le jeu où elle se
 trouve.</p>
 
 <p><b>Fond des lettres</b> pose derrière le rang un carré arrondi, blanc par
-défaut, cerné du même filet que le panneau et tracé par-dessus lui ;
-<b>Taille du fond</b> donne sa largeur puis sa hauteur. Le fond recouvre tout
-le coin : la lettre et le symbole de la couleur posé dessous, centré sur les
-deux. <b>Taille des lettres</b> grossit ou réduit les lettres du coin, et le
-symbole dessous suit dans la même proportion. Le <b>joker</b> et
-l'<b>excuse</b> portent dans leurs coins une étoile « ★ » à la place du rang,
-et <b>Le mot du joker</b> retire le mot écrit sous leur panneau.</p>
+défaut, tracé par-dessus le panneau ; la pastille à côté de la sienne donne la
+couleur de son <b>filet</b>, qui est celui du panneau tant qu'aucune n'est
+choisie. <b>Taille du fond</b> donne sa largeur puis sa hauteur. Le fond
+recouvre tout le coin : la lettre et le symbole de la couleur posé dessous,
+centré sur les deux. <b>Taille des lettres</b> grossit ou réduit les lettres
+du coin, et le symbole dessous suit dans la même proportion. Le <b>joker</b>
+et l'<b>excuse</b> portent dans leurs coins une étoile « ★ » à la place du
+rang, et <b>Le mot du joker</b> retire le mot écrit sous leur panneau.</p>
 
 <p> La <b>hauteur</b> est celle des images produites :
 quelques centaines de pixels suffisent, les cinquante-trois cartes partageant

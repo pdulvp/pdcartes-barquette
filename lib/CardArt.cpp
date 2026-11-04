@@ -420,19 +420,20 @@ void paintPip(QPainter *painter, const QPointF &middle, qreal span, int suit,
 }
 
 // Le panneau des cartes à emblème : un rectangle beige arrondi, cerné d'un
-// filet à la couleur de la carte. Seul au milieu du papier, un emblème
-// flottait ; le panneau lui donne une assise, et la marge blanche qui
-// l'entoure reste celle de la carte.
+// filet à la couleur de la carte — ou à la couleur choisie pour ce filet
+// (`panelEdge`). Seul au milieu du papier, un emblème flottait ; le panneau
+// lui donne une assise, et la marge blanche qui l'entoure reste celle de la
+// carte.
 //
 // Les trois figures et le joker le portent, et le portent identique : ce sont
 // les quatre cartes d'un jeu qui ne montrent pas de symboles, et elles se
 // reconnaissent d'autant mieux qu'elles se ressemblent.
 void paintEmblemPanel(QPainter *painter, const QRectF &box, const QRectF &card,
-                      const QColor &ink, const QColor &panel, const PanelArt &art = {}) {
+                      const QColor &ink, const CardStyle &style, const PanelArt &art = {}) {
     const qreal round = panelRoundOf(box, card, std::min(box.width(), box.height()) * 0.11);
     painter->save();
-    painter->setPen(QPen(blendColours(panel, ink, 0.26), std::max(1.0, box.width() * 0.020)));
-    painter->setBrush(panel);
+    painter->setPen(QPen(panelEdgeColour(style, ink), std::max(1.0, box.width() * 0.020)));
+    painter->setBrush(style.panel);
     painter->drawRoundedRect(box, round, round);
     if (!art.isEmpty()) {
         // L'image vient à la place de la couleur de fond, et de rien d'autre :
@@ -463,7 +464,7 @@ void paintEmblemPanel(QPainter *painter, const QRectF &box, const QRectF &card,
 // panneau n'est pas tracé, c'est sur le papier qu'ils se découpent.
 void paintCourtMark(QPainter *painter, const QRectF &box, const QRectF &card, int rank,
                     const QColor &ink, const CardStyle &style, const PanelArt &art) {
-    if (style.panelled) paintEmblemPanel(painter, box, card, ink, style.panel, art);
+    if (style.panelled) paintEmblemPanel(painter, box, card, ink, style, art);
     // L'emblème effacé, il ne reste que le panneau et ce qu'il porte.
     if (!style.emblemShown) return;
     const QColor hollow = style.panelled ? style.panel : style.paper;
@@ -732,9 +733,9 @@ void paintCornerIndex(QPainter *painter, const QRectF &box, const QString &label
                             std::clamp(style.indexHeight, kIndexSmallest, kIndexLargest));
             back.moveCenter(content.center());
             const qreal round = std::min(back.width(), back.height()) * 0.24;
-            // Le même filet que le panneau, à la largeur près : la couleur
-            // est calculée comme celle du panneau, du beige et de l'encre.
-            painter->setPen(QPen(blendColours(style.panel, ink, 0.26),
+            // Par défaut le même filet que le panneau ; une couleur choisie
+            // pour le filet des lettres (`indexEdge`) passe devant.
+            painter->setPen(QPen(indexEdgeColour(style, ink),
                                  std::max(1.0, back.width() * 0.020)));
             painter->setBrush(style.indexBack);
             painter->drawRoundedRect(back, round, round);
@@ -777,7 +778,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         const QString roman = CardSet::romanNumber(rank);
         const QRectF panel = emblemPanelBox(box, style);
         if (style.panelled && panelFits(panel)) {
-            paintEmblemPanel(painter, panel, box, ink, style.panel, art);
+            paintEmblemPanel(painter, panel, box, ink, style, art);
         }
         if (panelFits(panel) && style.emblemShown) {
             const QRectF field = emblemFieldOf(panel);
@@ -818,7 +819,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         // des figures, le mot « Joker » s'écrivant en dessous.
         const QRectF panel = jokerPanelBox(box, style);
         if (panelFits(panel)) {
-            if (style.panelled) paintEmblemPanel(painter, panel, box, ink, style.panel, art);
+            if (style.panelled) paintEmblemPanel(painter, panel, box, ink, style, art);
             if (style.emblemShown) {
                 paintJoker(painter, panel.adjusted(panel.width() * 0.10, panel.height() * 0.08,
                                                    -panel.width() * 0.10, -panel.height() * 0.08),
@@ -879,7 +880,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         const qreal size = std::clamp(style.emblemSize, kEmblemSmallest, kEmblemLargest);
         const QRectF panel = emblemPanelBox(box, style);
         if (panelFits(panel)) {
-            if (style.panelled) paintEmblemPanel(painter, panel, box, ink, style.panel, art);
+            if (style.panelled) paintEmblemPanel(painter, panel, box, ink, style, art);
             if (style.emblemShown) {
                 const QRectF field = emblemFieldOf(panel);
                 paintPip(painter, field.center(),
@@ -920,7 +921,7 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
             // ce soit une assise et non un fond rempli à ras.
             if (style.panelled && style.panelOnPips) {
                 const QRectF panel = pipPanelBox(box, style);
-                if (panelFits(panel)) paintEmblemPanel(painter, panel, box, ink, style.panel, art);
+                if (panelFits(panel)) paintEmblemPanel(painter, panel, box, ink, style, art);
             }
             if (style.pipsShown) {
                 for (const QPointF &at : layout) {
@@ -964,7 +965,8 @@ CardStyle CardStyle::fromPalette(const Palette &scheme) {
 
 bool CardStyle::operator==(const CardStyle &other) const {
     return paper == other.paper && ink == other.ink && red == other.red &&
-           panel == other.panel && cap == other.cap && bell == other.bell &&
+           panel == other.panel && panelEdge == other.panelEdge &&
+           cap == other.cap && bell == other.bell &&
            back == other.back && backInk == other.backInk &&
            panelled == other.panelled && panelOnPips == other.panelOnPips &&
            panelWidth == other.panelWidth && panelHeight == other.panelHeight &&
@@ -973,6 +975,7 @@ bool CardStyle::operator==(const CardStyle &other) const {
            letters == other.letters && qFuzzyCompare(emblemSize, other.emblemSize) &&
            indexShown == other.indexShown &&
            indexBackShown == other.indexBackShown && indexBack == other.indexBack &&
+           indexEdge == other.indexEdge &&
            indexWidth == other.indexWidth && indexHeight == other.indexHeight &&
            indexFontSize == other.indexFontSize &&
            jokerNameShown == other.jokerNameShown;
@@ -1012,6 +1015,18 @@ QString rankLettersName(RankLetters letters) {
 }
 
 bool cardSuitIsRed(int suit) { return suit == kCoeur || suit == kCarreau; }
+
+QColor computedPanelEdge(const CardStyle &style, const QColor &ink) {
+    return blendColours(style.panel, ink, 0.26);
+}
+
+QColor panelEdgeColour(const CardStyle &style, const QColor &ink) {
+    return style.panelEdge.isValid() ? style.panelEdge : computedPanelEdge(style, ink);
+}
+
+QColor indexEdgeColour(const CardStyle &style, const QColor &ink) {
+    return style.indexEdge.isValid() ? style.indexEdge : panelEdgeColour(style, ink);
+}
 
 void drawPip(QPainter *painter, const QPointF &middle, qreal span, int suit, const QColor &ink) {
     paintPip(painter, middle, span, suit, QBrush(ink));
@@ -1113,7 +1128,12 @@ void drawDefaultBack(QPainter *painter, const QRectF &box, const CardStyle &styl
 
     // Le dos est une carte comme les autres : un papier, et un panneau posé
     // dessus. Son panneau est le rectangle qu'occupe le treillis, et les deux
-    // facteurs de taille valent pour lui comme pour celui d'une face.
+    // facteurs de taille valent pour lui comme pour celui d'une face. Son
+    // filet est celui du panneau quand une couleur en est choisie, et sinon
+    // il est calculé du fond du dos et du blanc, comme avant.
+    const QColor edge = style.panelEdge.isValid()
+                            ? style.panelEdge
+                            : blendColours(style.back, QColor(Qt::white), 0.45);
     const QRectF panel = backPanelBox(box, style);
     if (panel.width() > 6 && panel.height() > 6) {
         const qreal round = panelRoundOf(panel, box, corner * 0.55);
@@ -1124,7 +1144,7 @@ void drawDefaultBack(QPainter *painter, const QRectF &box, const CardStyle &styl
         if (art.isEmpty()) {
             // La marge encadrant un treillis, disposition traditionnelle du
             // dos d'une carte à jouer.
-            painter->setPen(QPen(blendColours(style.back, QColor(Qt::white), 0.45), 1.0));
+            painter->setPen(QPen(edge, 1.0));
             painter->drawRoundedRect(panel, round, round);
 
             painter->save();
@@ -1148,7 +1168,7 @@ void drawDefaultBack(QPainter *painter, const QRectF &box, const CardStyle &styl
             painter->setRenderHint(QPainter::SmoothPixmapTransform, true);
             painter->drawImage(panelArtBox(panel, art), art.image);
             painter->restore();
-            painter->setPen(QPen(blendColours(style.back, QColor(Qt::white), 0.45), 1.0));
+            painter->setPen(QPen(edge, 1.0));
             painter->drawRoundedRect(panel, round, round);
         }
     }

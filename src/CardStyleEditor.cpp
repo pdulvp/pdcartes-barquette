@@ -37,29 +37,42 @@ struct Field {
     // booléen du style que cette case commande.
     bool togglable;
     bool CardStyle::*toggle;
+    // Le champ est-il un filet calculé tant qu'aucune couleur n'est choisie ?
+    // Sa pastille montre alors la couleur effective, et reprendre cette
+    // couleur dans le dialogue rend le filet de nouveau calculé.
+    bool autoEdge;
 };
 
 const Field kFields[] = {
-    {"Papier", &CardStyle::paper, "Le fond de la carte.", false, nullptr},
+    {"Papier", &CardStyle::paper, "Le fond de la carte.", false, nullptr, false},
     {"Encre noire", &CardStyle::ink, "Le pique et le trèfle, et le rang dans le coin.", false,
-     nullptr},
-    {"Encre rouge", &CardStyle::red, "Le cœur et le carreau.", false, nullptr},
+     nullptr, false},
+    {"Encre rouge", &CardStyle::red, "Le cœur et le carreau.", false, nullptr, false},
     {"Panneau", &CardStyle::panel,
      "Le rectangle beige que portent les figures : le valet, la dame, le roi, le joker et "
      "l'as. Décochez pour poser l'emblème à même le papier : seul le rectangle disparaît, "
      "l'emblème gardant sa taille et sa place.",
-     true, &CardStyle::panelled},
+     true, &CardStyle::panelled, false},
+    {"Filet du panneau", &CardStyle::panelEdge,
+     "Le filet du panneau, et celui du panneau du dos. Tant qu'aucune couleur n'est choisie, il "
+     "est calculé du beige et de l'encre : la pastille montre cette couleur, et la reprendre "
+     "rend le filet de nouveau calculé.",
+     false, nullptr, true},
     {"Fond des lettres", &CardStyle::indexBack,
      "Le carré arrondi posé derrière le rang, en haut à gauche et en bas à droite, par-dessus "
-     "le panneau. Décochez pour ne laisser que la lettre. Son filet est de la même couleur "
-     "que celui du panneau.",
-     true, &CardStyle::indexBackShown},
+     "le panneau. Décochez pour ne laisser que la lettre.",
+     true, &CardStyle::indexBackShown, false},
+    {"Filet des lettres", &CardStyle::indexEdge,
+     "Le filet du fond des lettres. Par défaut, celui du panneau ; tant qu'aucune couleur n'est "
+     "choisie, la pastille montre celle du panneau, et la reprendre rend le filet de nouveau "
+     "celui du panneau.",
+     false, nullptr, true},
     {"Bonnet du joker", &CardStyle::cap, "Le bonnet, l'étoile, et le mot « Joker ».", false,
-     nullptr},
-    {"Grelots du joker", &CardStyle::bell, "Les trois grelots du bonnet.", false, nullptr},
-    {"Fond du dos", &CardStyle::back, "La couleur pleine du dos.", false, nullptr},
+     nullptr, false},
+    {"Grelots du joker", &CardStyle::bell, "Les trois grelots du bonnet.", false, nullptr, false},
+    {"Fond du dos", &CardStyle::back, "La couleur pleine du dos.", false, nullptr, false},
     {"Treillis du dos", &CardStyle::backInk, "Les diagonales tracées sur le dos.", false,
-     nullptr},
+     nullptr, false},
 };
 constexpr int kFieldCount = int(sizeof(kFields) / sizeof(kFields[0]));
 
@@ -298,7 +311,9 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         cells->setVerticalSpacing(compact ? 2 : 5);
         int row = 0;
         for (int at = 0; at < kFieldCount; ++at) {
-            if (kFields[at].togglable) continue;
+            // Les champs qui se retirent et les filets ont leur pastille dans
+            // la partie « Le dessin », à côté de leur rectangle.
+            if (kFields[at].togglable || kFields[at].autoEdge) continue;
             const int column = (row / 4) * 2;
             cells->addWidget(m_swatches.at(at), row % 4, column);
             cells->addWidget(captionFor(at), row % 4, column + 1);
@@ -330,25 +345,31 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
     auto shapeBlock = [&] {
         int panelAt = 0;
         int backAt = 0;
+        int panelEdgeAt = 0;
+        int indexEdgeAt = 0;
         for (int at = 0; at < kFieldCount; ++at) {
-            if (!kFields[at].togglable) continue;
             if (kFields[at].member == &CardStyle::panel) {
                 panelAt = at;
-            } else {
+            } else if (kFields[at].member == &CardStyle::indexBack) {
                 backAt = at;
+            } else if (kFields[at].member == &CardStyle::panelEdge) {
+                panelEdgeAt = at;
+            } else if (kFields[at].member == &CardStyle::indexEdge) {
+                indexEdgeAt = at;
             }
         }
         auto *cells = new QGridLayout;
         cells->setHorizontalSpacing(9);
         cells->setVerticalSpacing(compact ? 2 : 5);
-        // La ligne du panneau porte ses trois commandes : sa présence, sa
-        // couleur, et les cartes qu'il garnit. La seconde case se lit dans la
-        // suite de la première — « Panneau », « aussi sous les symboles » — et
-        // tenir sur une ligne lui évite de pousser la section d'un cran sous
-        // la grille des cases.
+        // La ligne du panneau porte ses commandes : sa présence, sa couleur,
+        // la couleur de son filet, et les cartes qu'il garnit. La seconde case
+        // se lit dans la suite de la première — « Panneau », « aussi sous les
+        // symboles » — et tenir sur une ligne lui évite de pousser la section
+        // d'un cran sous la grille des cases.
         cells->addWidget(captionFor(panelAt), 0, 0);
         cells->addWidget(m_swatches.at(panelAt), 0, 1);
-        cells->addWidget(m_pipPanel, 0, 2);
+        cells->addWidget(m_swatches.at(panelEdgeAt), 0, 2);
+        cells->addWidget(m_pipPanel, 0, 3);
         // La taille du panneau : deux champs sur une même ligne, séparés du
         // signe du produit, la largeur puis la hauteur.
         auto *sizeLabel = new QLabel(tr("Taille du panneau"), this);
@@ -390,13 +411,15 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         cells->addLayout(middleRow, 5, 0, 1, 3);
         cells->addWidget(m_glassy, 6, 0, 1, 3);
         // Le fond des lettres du coin, sur le même modèle que le panneau :
-        // sa présence et sa couleur sur une ligne, sa taille sur la
-        // suivante. Le fond se trace par-dessus le panneau, comme l'index.
-        // La case « Index des coins » partage la ligne : c'est elle qui dit
-        // si les lettres du coin sont tracées, et le fond va avec elles.
+        // sa présence, sa couleur et la couleur de son filet sur une ligne,
+        // sa taille sur la suivante. Le fond se trace par-dessus le panneau,
+        // comme l'index. La case « Index des coins » partage la ligne : c'est
+        // elle qui dit si les lettres du coin sont tracées, et le fond va
+        // avec elles.
         cells->addWidget(captionFor(backAt), 7, 0);
         cells->addWidget(m_swatches.at(backAt), 7, 1);
-        cells->addWidget(m_indexShown, 7, 2);
+        cells->addWidget(m_swatches.at(indexEdgeAt), 7, 2);
+        cells->addWidget(m_indexShown, 7, 3);
         auto *backSizeLabel = new QLabel(tr("Taille du fond"), this);
         backSizeLabel->setToolTip(m_indexWide->toolTip());
         markHintLabel(backSizeLabel);
@@ -410,10 +433,10 @@ CardStyleEditor::CardStyleEditor(bool compact, QWidget *parent)
         backSizeRow->addStretch();
         cells->addWidget(backSizeLabel, 8, 0);
         cells->addLayout(backSizeRow, 8, 1, 1, 2);
-        cells->addWidget(m_jokerName, 9, 0, 1, 3);
+        cells->addWidget(m_jokerName, 9, 0, 1, 4);
         // C'est la place restante qui s'étire, et non l'étiquette : les deux
         // champs restent côte à côte au lieu d'être jetés aux deux bords.
-        cells->setColumnStretch(3, 1);
+        cells->setColumnStretch(4, 1);
         return cells;
     };
 
@@ -640,6 +663,21 @@ void CardStyleEditor::applyColours() {
 void CardStyleEditor::pickColour(int field) {
     if (field < 0 || field >= kFieldCount) return;
     QColor &slot = m_recipe.style.*(kFields[field].member);
+    // Un filet calculé tant qu'aucune couleur n'est choisie s'ouvre dans le
+    // dialogue avec sa couleur effective, et reprendre cette couleur rend le
+    // filet de nouveau calculé.
+    if (kFields[field].autoEdge) {
+        const bool isPanelEdge = kFields[field].member == &CardStyle::panelEdge;
+        const QColor shown = isPanelEdge ? panelEdgeColour(m_recipe.style, m_recipe.style.ink)
+                                         : indexEdgeColour(m_recipe.style, m_recipe.style.ink);
+        const QColor computed = isPanelEdge ? computedPanelEdge(m_recipe.style, m_recipe.style.ink)
+                                            : panelEdgeColour(m_recipe.style, m_recipe.style.ink);
+        const QColor picked = QColorDialog::getColor(shown, this, tr(kFields[field].label));
+        if (!picked.isValid()) return;
+        slot = picked == computed ? QColor() : picked;
+        noteEdit();
+        return;
+    }
     const QColor picked = QColorDialog::getColor(slot, this, tr(kFields[field].label));
     if (!picked.isValid() || picked == slot) return;
     slot = picked;
@@ -669,10 +707,19 @@ void CardStyleEditor::refreshSwatches() {
         // éteinte, plutôt que de laisser croire qu'elle agit encore.
         bool live = !kFields[at].togglable || m_recipe.style.*(kFields[at].toggle);
         if (kFields[at].member == &CardStyle::indexBack) live = live && indexShown;
+        // Le filet du panneau s'éteint avec le panneau ; celui des lettres,
+        // avec le fond des lettres.
+        if (kFields[at].member == &CardStyle::panelEdge) live = panelled;
+        if (kFields[at].member == &CardStyle::indexEdge) live = indexBack;
         m_swatches.at(at)->setEnabled(live);
-        const QColor colour = live ? m_recipe.style.*(kFields[at].member)
-                                   : blendColours(m_recipe.style.*(kFields[at].member),
-                                                  scheme.surface, 0.72);
+        // Un filet non choisi montre sa couleur effective, calculée.
+        QColor colour = m_recipe.style.*(kFields[at].member);
+        if (kFields[at].autoEdge && !colour.isValid()) {
+            colour = kFields[at].member == &CardStyle::panelEdge
+                         ? panelEdgeColour(m_recipe.style, m_recipe.style.ink)
+                         : indexEdgeColour(m_recipe.style, m_recipe.style.ink);
+        }
+        if (!live) colour = blendColours(colour, scheme.surface, 0.72);
         m_swatches.at(at)->setStyleSheet(
             QStringLiteral("QToolButton { background: %1; border: 1px solid %2;"
                            " border-radius: 4px; }"

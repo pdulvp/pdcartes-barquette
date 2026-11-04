@@ -63,14 +63,16 @@ const char kRecipeTag[] = "recettes";
 //     9  la présence des lettres du coin elles-mêmes
 //     10 le mot écrit sous le panneau du joker, qui peut se retirer
 //     11 la taille de la police des lettres du coin
+//     12 les filets choisis du panneau et du fond des lettres (invalides =
+//        calculés, comme avant)
 //
 // Une recette plus ancienne garde donc les valeurs d'origine des champs
 // qu'elle n'a pas : son panneau derrière les seules figures, à sa taille et de
 // sa couleur, un emblème à sa taille, sans image, un emblème plat, les
 // lettres françaises, son motif du milieu, pas de fond sous les lettres
-// du coin, les lettres du coin tracées à leur taille d'origine, et le mot
-// du joker écrit.
-constexpr qint32 kRecipeVersion = 11;
+// du coin, les lettres du coin tracées à leur taille d'origine, le mot
+// du joker écrit, et les filets calculés.
+constexpr qint32 kRecipeVersion = 12;
 
 // La taille d'une image, lue dans son en-tête : il n'est pas nécessaire de
 // décoder l'image entière pour connaître ses dimensions. Nulle si le type
@@ -598,6 +600,7 @@ bool CardSet::save(const QString &path, QString *why) const {
                 out << how.style.indexShown;
                 out << how.style.jokerNameShown;
                 out << qreal(how.style.indexFontSize);
+                out << how.style.panelEdge << how.style.indexEdge;
             }
         }
 
@@ -811,6 +814,7 @@ bool CardSet::load(const QString &path, QString *why) {
                     in >> font;
                     how.style.indexFontSize = font > 0.0 ? font : 1.0;
                 }
+                if (blockVersion >= 12) in >> how.style.panelEdge >> how.style.indexEdge;
                 if (in.status() != QDataStream::Ok) break;
                 how.height = height > 0 ? height : kDrawnHeight;
                 // Une recette dont la case n'a rien reçu serait sans objet.

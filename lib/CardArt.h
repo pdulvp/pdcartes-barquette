@@ -85,6 +85,10 @@ struct CardStyle {
     QColor ink;      // le pique et le trèfle, et le rang dans le coin
     QColor red;      // le cœur et le carreau
     QColor panel;    // le panneau, beige
+    // Le filet du panneau. Invalide tant qu'aucune couleur n'est choisie :
+    // il est alors calculé au dessin, du beige et de l'encre, et le panneau
+    // d'un dos garde son propre calcul (du fond du dos et du blanc).
+    QColor panelEdge;
     QColor cap;      // le bonnet et l'étoile du joker, et le mot « Joker »
     QColor bell;     // les grelots du bonnet
     QColor back;     // le fond du dos
@@ -205,6 +209,9 @@ struct CardStyle {
     // au dessin, de la même couleur que celui du panneau.
     bool indexBackShown = false;
     QColor indexBack = QColor(Qt::white);  // le fond, blanc par défaut
+    // Le filet du fond des lettres. Invalide tant qu'aucune couleur n'est
+    // choisie : il est alors celui du panneau, calculé ou choisi.
+    QColor indexEdge;
 
     // La largeur et la hauteur du fond des lettres, en facteur de celles
     // qu'il a par défaut — le contenu entier du coin : la lettre et le
@@ -350,6 +357,16 @@ inline constexpr int kRankLettersCount = 4;
 // Vrai pour le cœur et le carreau. La numérotation des couleurs est celle de
 // `CardSet` : pique, cœur, carreau, trèfle.
 bool cardSuitIsRed(int suit);
+
+// La couleur calculée du filet du panneau : du beige et de l'encre de la
+// carte.
+QColor computedPanelEdge(const CardStyle &style, const QColor &ink);
+// La couleur effective du filet du panneau : celle choisie si elle l'est
+// (`panelEdge` valide), sinon la calculée.
+QColor panelEdgeColour(const CardStyle &style, const QColor &ink);
+// La couleur effective du filet du fond des lettres : celle choisie si elle
+// l'est (`indexEdge` valide), sinon celle du panneau.
+QColor indexEdgeColour(const CardStyle &style, const QColor &ink);
 
 // Le symbole d'une couleur, centré sur un point et inscrit dans un carré de
 // `span` de côté.
