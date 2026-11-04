@@ -291,9 +291,8 @@ QRectF panelSized(const QRectF &base, const QRectF &box, const CardStyle &style)
     QRectF out(0.0, 0.0, std::min(base.width() * wide, limit.width()),
                std::min(base.height() * tall, limit.height()));
     out.moveCenter(base.center());
-    // Le panneau du joker n'est pas centré en hauteur sur la carte, le mot
-    // « Joker » s'écrivant en dessous : porté à sa plus grande taille, il sort
-    // par le haut, et il est alors ramené.
+    // Porté à sa plus grande taille, un panneau sort de la carte : il est
+    // alors ramené dedans.
     if (out.left() < limit.left()) out.moveLeft(limit.left());
     if (out.right() > limit.right()) out.moveRight(limit.right());
     if (out.top() < limit.top()) out.moveTop(limit.top());
@@ -301,9 +300,10 @@ QRectF panelSized(const QRectF &base, const QRectF &box, const CardStyle &style)
     return out;
 }
 
-// Le rectangle du panneau, le même pour les quatre figures : le valet, la
-// dame, le roi et l'as. Le joker a le sien, un peu moins haut, le mot
-// « Joker » s'écrivant en dessous, et les cartes de deux à dix le leur, déduit
+// Le rectangle du panneau, le même pour les cinq cartes à motif unique : le
+// valet, la dame, le roi, l'as et le joker — centré sur la carte comme eux,
+// le mot « Joker » / « Excuse » s'écrivant en dessous du panneau. Les cartes
+// de deux à dix ont le leur, déduit
 // de la grille des symboles qu'il porte.
 QRectF emblemPanelBox(const QRectF &box, const CardStyle &style) {
     const QRectF base(box.left() + box.width() * 0.235, box.top() + box.height() * 0.155,
@@ -343,14 +343,6 @@ QRectF pipPanelBox(const QRectF &box, const CardStyle &style) {
 QRectF backPanelBox(const QRectF &box, const CardStyle &style) {
     return panelSized(box.adjusted(box.width() * 0.085, box.width() * 0.085,
                                    -box.width() * 0.085, -box.width() * 0.085),
-                      box, style);
-}
-
-// Le panneau du joker : un peu moins haut que celui des figures, le mot
-// « Joker » s'écrivant en dessous.
-QRectF jokerPanelBox(const QRectF &box, const CardStyle &style) {
-    return panelSized(QRectF(box.left() + box.width() * 0.235, box.top() + box.height() * 0.150,
-                             box.width() * 0.53, box.height() * 0.640),
                       box, style);
 }
 
@@ -813,11 +805,11 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
         // et c'est la couleur des atouts qui le dit ; tous deux portent la
         // même étoile dans les coins.
         //
-        // Le joker porte le panneau des figures : lui non plus ne montre pas
-        // de symboles, et il remplissait jusqu'au bord une carte où les
-        // treize autres gardent une marge. Il est un peu moins haut que celui
-        // des figures, le mot « Joker » s'écrivant en dessous.
-        const QRectF panel = jokerPanelBox(box, style);
+        // Le joker porte le panneau des figures, centré sur la carte comme
+        // le leur : lui non plus ne montre pas de symboles. Le mot « Joker »
+        // ou « Excuse » s'écrit sur le panneau, en bas de celui-ci, quand il
+        // est demandé.
+        const QRectF panel = emblemPanelBox(box, style);
         if (panelFits(panel)) {
             if (style.panelled) paintEmblemPanel(painter, panel, box, ink, style, art);
             if (style.emblemShown) {
@@ -834,8 +826,15 @@ void paintFaceContent(QPainter *painter, const QRectF &box, int rank, int suit,
             name.setLetterSpacing(QFont::PercentageSpacing, 130);
             painter->setFont(name);
             painter->setPen(style.cap);
-            painter->drawText(QRectF(box.left(), box.top() + box.height() * 0.820,
-                                     box.width(), box.height() * 0.110),
+            // Le mot s'écrit sur le panneau, en bas de celui-ci — et donc
+            // par-dessus, puisqu'il est tracé après : c'est lui qui le nomme.
+            // Sans panneau lisible (carte trop petite), il reprend sa bande
+            // fixe vers le bas de la carte.
+            qreal wordTop = box.top() + box.height() * 0.820;
+            if (panelFits(panel)) {
+                wordTop = panel.bottom() - box.height() * 0.125;
+            }
+            painter->drawText(QRectF(box.left(), wordTop, box.width(), box.height() * 0.110),
                               Qt::AlignCenter,
                               suit == CardSet::kTrumpSuit
                                   ? QCoreApplication::translate("cardart", "Excuse")
@@ -1074,7 +1073,8 @@ QRectF cardPanelBox(const QRectF &box, int rank, int suit, const CardStyle &styl
     if (box.width() < 3 || box.height() < 5 || !style.panelled) return {};
     QRectF panel;
     if (rank == kJoker) {
-        panel = jokerPanelBox(box, style);
+        // Le joker a le même panneau que les figures, centré sur la carte.
+        panel = emblemPanelBox(box, style);
     } else if (suit == CardSet::kTrumpSuit || rank >= kValet || rank == kAs) {
         // Un atout, une figure ou l'as : le panneau des figures.
         panel = emblemPanelBox(box, style);
