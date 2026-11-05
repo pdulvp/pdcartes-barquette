@@ -70,6 +70,11 @@ target_link_libraries(pdcartes-barquette PRIVATE cartotheque Qt6::Widgets)
 install(TARGETS pdcartes-barquette RUNTIME DESTINATION bin)
 install(FILES data/pdcartes-barquette.desktop
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
+# La licence embarquée dans le paquet comme son fichier de copyright :
+# /usr/share/doc/pdcartes-barquette/copyright
+install(FILES LICENSE.md
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/doc/pdcartes-barquette
+        RENAME copyright)
 
 set(CPACK_GENERATOR "DEB")
 set(CPACK_PACKAGE_NAME "pdcartes-barquette")
